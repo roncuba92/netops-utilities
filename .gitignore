@@ -1,0 +1,110 @@
+# .gitignore generado para: Python, uv (uvicorn/uvloop), Tkinter y macOS
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+dist/
+eggs/
+*.egg-info/
+pip-wheel-metadata/
+wheels/
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+venv.bak/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+htmlcov/
+
+# Translations
+*.mo
+*.pot
+
+# Django/Flask/Local
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+instance/
+.webassets-cache
+
+# Sphinx
+docs/_build/
+
+# Type checkers / caches
+.mypy_cache/
+.pytype/
+.pyre/
+
+# pyenv
+.python-version
+
+# Environment files
+.env
+.env.*
+Pipfile.lock
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+.VolumeIcon.icns
+.DocumentRevisions-V100
+.fseventsd
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Uvicorn / uvloop / uv runtime and logs (uv shorthand interpreted as uvicorn/uvloop)
+uvicorn.log
+uvicorn.*
+uvloop.*
+uvicorn/
+uvicorn/*.log
+
+# Tkinter (general temp/cache patterns; Tkinter normalmente no genera artefactos especiales)
+*.tk
+*.tcl
+tkinter_cache/
+tkinter_temp/
+
+# Misc
+*.pyc
+*.pyo
+*.pyd
+__pypackages__/
