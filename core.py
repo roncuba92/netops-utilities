@@ -3,18 +3,8 @@ import datetime
 import re
 from netmiko import ConnectHandler
 
-ERROR_PATTERNS = (
-    "invalid",
-    "incomplete",
-    "ambiguous",
-    "error",
-    "denied",
-    "not allowed",
-    "% ",
-)
-
+ERROR_PATTERNS = ("invalid","incomplete","ambiguous","error","denied","not allowed","% ",)
 SUCCESS_COPY_PATTERNS = ("bytes copied", "ok", "copy complete")
-
 
 class GestorRed:
     def obtener_info_dispositivo(self, ip, usuario, contrasena, secreto):
@@ -40,10 +30,13 @@ class GestorRed:
 
         with ConnectHandler(**info_dispositivo) as conn:
             conn.enable()
-            for tipo_tarea, descripcion_tarea in lista_tareas:
+            for tarea in lista_tareas:
+                tipo_tarea = tarea.get("tipo")
+                descripcion_tarea = tarea.get("descripcion", "")
                 registrar(f"Procesando: {descripcion_tarea}")
+
                 if tipo_tarea == "HOSTNAME":
-                    nuevo_hostname = descripcion_tarea.split(":")[-1].strip()
+                    nuevo_hostname = (tarea.get("hostname") or "").strip()
                     if not nuevo_hostname:
                         desviaciones.append("Hostname vacío no es válido.")
                         registrar("⚠ Hostname vacío; se omite.")
@@ -58,7 +51,8 @@ class GestorRed:
                     registrar(f"✔ Hostname actualizado: {conn.find_prompt()}")
 
                 elif tipo_tarea == "VLAN":
-                    vlan_id, vlan_nombre = self._parsear_tarea_vlan(descripcion_tarea)
+                    vlan_id = str(tarea.get("vlan_id") or "").strip()
+                    vlan_nombre = (tarea.get("vlan_nombre") or "").strip()
                     if not vlan_id or not vlan_nombre:
                         desviaciones.append(f"No se pudo leer VLAN de la tarea: {descripcion_tarea}")
                         registrar(f"⚠ Tarea VLAN inválida: {descripcion_tarea}")

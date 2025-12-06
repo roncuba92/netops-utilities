@@ -20,6 +20,8 @@ COLOR_ACCION_PRINCIPAL = "#3b5998"
 
 BTN_HEIGHT = 34
 INPUT_HEIGHT = 30
+VLAN_MIN = 1
+VLAN_MAX = 4094
 FONT_UI = ("Segoe UI", 11)
 FONT_BOLD = ("Segoe UI", 11, "bold")
 
@@ -27,6 +29,7 @@ class AplicacionRed(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.backend = GestorRed()
+        self.tareas = {}
         self.title("NetConfigurator")
         self.geometry("1100x720") 
         self.configure(fg_color=COLOR_FONDO_VENTANA)
@@ -207,22 +210,43 @@ class AplicacionRed(ctk.CTk):
         self.caja_logs.insert("end", f"[{timestamp}] {msg}\n")
         self.caja_logs.see("end")
 
+    def _insertar_tarea(self, tipo, descripcion, payload):
+        item_id = self.arbol_tareas.insert("", "end", values=(tipo, descripcion))
+        self.tareas[item_id] = {"tipo": tipo, "descripcion": descripcion, **payload}
+        return item_id
+
     def agregar_tarea_hostname(self):
         nombre = self.entrada_hostname.get().strip()
-        if nombre:
-            self.arbol_tareas.insert("", "end", values=(f"HOSTNAME", f"Configurar Hostname: {nombre}"))
-            self.entrada_hostname.delete(0, "end")
+        if not nombre:
+            messagebox.showwarning("Hostname", "Ingrese un nombre válido.")
+            return
+        self._insertar_tarea("HOSTNAME", f"Configurar Hostname: {nombre}", {"hostname": nombre})
+        self.entrada_hostname.delete(0, "end")
 
     def agregar_tarea_vlan(self):
         vlan_id = self.entrada_vlan_id.get().strip()
         vlan_nombre = self.entrada_vlan_nombre.get().strip()
-        if vlan_id and vlan_nombre:
-            self.arbol_tareas.insert("", "end", values=(f"VLAN", f"Configurar VLAN {vlan_id}: Nombre '{vlan_nombre}'"))
-            self.entrada_vlan_id.delete(0, "end")
-            self.entrada_vlan_nombre.delete(0, "end")
+        if not vlan_id.isdigit():
+            messagebox.showwarning("VLAN", "El ID debe ser numérico.")
+            return
+        if not vlan_nombre:
+            messagebox.showwarning("VLAN", "Ingrese un nombre para la VLAN.")
+            return
+        if not VLAN_MIN <= int(vlan_id) <= VLAN_MAX:
+            messagebox.showwarning("VLAN", f"ID fuera de rango ({VLAN_MIN}-{VLAN_MAX}).")
+            return
+
+        self._insertar_tarea(
+            "VLAN",
+            f"Configurar VLAN {vlan_id}: Nombre '{vlan_nombre}'",
+            {"vlan_id": vlan_id, "vlan_nombre": vlan_nombre},
+        )
+        self.entrada_vlan_id.delete(0, "end")
+        self.entrada_vlan_nombre.delete(0, "end")
 
     def quitar_tarea(self):
         for item in self.arbol_tareas.selection():
+            self.tareas.pop(item, None)
             self.arbol_tareas.delete(item)
 
     def desconectar_sesion(self):
@@ -264,10 +288,8 @@ class AplicacionRed(ctk.CTk):
             messagebox.showinfo("Info", "Lista vacía")
             return
 
-        lista_tareas = [
-            (valores[0], valores[1])
-            for valores in (self.arbol_tareas.item(item)["values"] for item in elementos)
-        ]
+        lista_tareas = [self.tareas.get(item) for item in elementos if item in self.tareas]
+        lista_tareas = [t for t in lista_tareas if t]  # filtra nulos por si faltan entradas
 
         try:
             nuevo_prompt, desviaciones = self.backend.aplicar_cambios(self._obtener_credenciales(), lista_tareas, callback_log=self.registrar)
@@ -283,7 +305,9 @@ class AplicacionRed(ctk.CTk):
                 self.registrar(">>> FINALIZADO CON ÉXITO. Validación OK.")
                 messagebox.showinfo("Éxito", "Cambios aplicados y validados.")
             
-            for item in elementos: self.arbol_tareas.delete(item)
+            for item in elementos:
+                self.tareas.pop(item, None)
+                self.arbol_tareas.delete(item)
             
         except Exception as e:
             self.registrar(f"ERROR CRÍTICO: {e}")
