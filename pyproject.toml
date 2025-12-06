@@ -1,9 +1,9 @@
 [project]
 name = "cisco-challenge"
 version = "0.1.0"
-description = "Add your description here"
+description = "UI en Python (CustomTkinter) para configurar hostname y VLANs en switches Cisco IOS vía Netmiko, validar cambios y hacer backups locales/TFTP."
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.10"
 dependencies = [
 	"customtkinter",
 	"netmiko",
