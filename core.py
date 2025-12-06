@@ -2,108 +2,106 @@ import os
 import datetime
 from netmiko import ConnectHandler
 
-class NetworkManager:
-    def get_device_info(self, ip, user, password, secret):
+class GestorRed:
+    def obtener_info_dispositivo(self, ip, usuario, contrasena, secreto):
         return {
             'device_type': 'cisco_ios',
             'host': ip.strip(),
-            'username': user.strip(),
-            'password': password.strip(),
-            'secret': secret.strip(),
+            'username': usuario.strip(),
+            'password': contrasena.strip(),
+            'secret': secreto.strip(),
         }
 
-    def test_connection(self, device_info):
-        with ConnectHandler(**device_info) as conn:
+    def probar_conexion(self, info_dispositivo):
+        with ConnectHandler(**info_dispositivo) as conn:
             return conn.find_prompt()
 
-    def apply_changes(self, device_info, task_list, log_callback=None):
-        log = log_callback or (lambda *_: None)
-        log(">>> INICIANDO CONEXIÓN SSH...")
-        expected_hostname = None
-        expected_vlans = {}
-        with ConnectHandler(**device_info) as conn:
+    def aplicar_cambios(self, info_dispositivo, lista_tareas, callback_log=None):
+        registrar = callback_log or (lambda *_: None)
+        registrar(">>> INICIANDO CONEXIÓN SSH...")
+        hostname_esperado = None
+        vlans_esperadas = {}
+        with ConnectHandler(**info_dispositivo) as conn:
             conn.enable()
-            for task_type, task_desc in task_list:
-                log(f"Procesando: {task_desc}")
-                if task_type == "HOSTNAME":
-                    name = task_desc.split(":")[-1].strip()
-                    conn.send_config_set([f"hostname {name}"])
-                    conn.base_prompt = name
-                    expected_hostname = name
-                    log(f"✔ Hostname cambiado: {conn.find_prompt()}")
-                elif task_type == "VLAN":
+            for tipo_tarea, descripcion_tarea in lista_tareas:
+                registrar(f"Procesando: {descripcion_tarea}")
+                if tipo_tarea == "HOSTNAME":
+                    nuevo_hostname = descripcion_tarea.split(":")[-1].strip()
+                    conn.send_config_set([f"hostname {nuevo_hostname}"])
+                    conn.base_prompt = nuevo_hostname
+                    hostname_esperado = nuevo_hostname
+                    registrar(f"✔ Hostname actualizado: {conn.find_prompt()}")
+                elif tipo_tarea == "VLAN":
                     try:
-                        vid, vname = task_desc.split("VLAN", 1)[1].split(": Nombre", 1)
-                        vid, vname = vid.strip(), vname.strip(" '")
-                        conn.send_config_set([f"vlan {vid}", f"name {vname}"])
-                        expected_vlans[vid] = vname
-                        log(f"✔ VLAN {vid} configurada.")
+                        vlan_id, vlan_nombre = descripcion_tarea.split("VLAN", 1)[1].split(": Nombre", 1)
+                        vlan_id, vlan_nombre = vlan_id.strip(), vlan_nombre.strip(" '")
+                        conn.send_config_set([f"vlan {vlan_id}", f"name {vlan_nombre}"])
+                        vlans_esperadas[vlan_id] = vlan_nombre
+                        registrar(f"✔ VLAN {vlan_id} configurada.")
                     except Exception as exc:
-                        log(f"⚠ Error leyendo tarea: {task_desc} ({exc})")
-            log("Guardando en NVRAM (wr mem)...")
+                        registrar(f"⚠ Error leyendo tarea: {descripcion_tarea} ({exc})")
+            registrar("Guardando en NVRAM (wr mem)...")
             conn.save_config()
             prompt = conn.find_prompt()
 
-            # --- Validación de configuración ---
-            deviations = []
-            current_host = conn.find_prompt().rstrip("#")
-            if expected_hostname and current_host != expected_hostname:
-                deviations.append(f"Hostname esperado '{expected_hostname}', encontrado '{current_host}'")
+            desviaciones = []
+            hostname_actual = conn.find_prompt().rstrip("#")
+            if hostname_esperado and hostname_actual != hostname_esperado:
+                desviaciones.append(f"Hostname esperado '{hostname_esperado}', encontrado '{hostname_actual}'")
 
-            if expected_vlans:
-                vlan_out = conn.send_command("show vlan brief")
-                for vid, vname in expected_vlans.items():
-                    line = next((ln for ln in vlan_out.splitlines() if ln.strip().startswith(vid)), None)
-                    if not line:
-                        deviations.append(f"VLAN {vid} no existe")
+            if vlans_esperadas:
+                salida_vlans = conn.send_command("show vlan brief")
+                for vlan_id, vlan_nombre in vlans_esperadas.items():
+                    linea = next((ln for ln in salida_vlans.splitlines() if ln.strip().startswith(vlan_id)), None)
+                    if not linea:
+                        desviaciones.append(f"VLAN {vlan_id} no existe")
                         continue
-                    parts = line.split()
-                    actual_name = parts[1] if len(parts) > 1 else ""
-                    if actual_name.lower() != vname.lower():
-                        deviations.append(f"VLAN {vid} nombre esperado '{vname}', encontrado '{actual_name}'")
+                    partes = linea.split()
+                    nombre_actual = partes[1] if len(partes) > 1 else ""
+                    if nombre_actual.lower() != vlan_nombre.lower():
+                        desviaciones.append(f"VLAN {vlan_id} nombre esperado '{vlan_nombre}', encontrado '{nombre_actual}'")
 
-            if deviations:
-                for dev in deviations:
-                    log(f"⚠ Configuración no estándar: {dev}")
+            if desviaciones:
+                for desviacion in desviaciones:
+                    registrar(f"⚠ Configuración no estándar: {desviacion}")
             else:
-                log("✔ Validación OK: hostname y VLANs coinciden con lo solicitado.")
+                registrar("✔ Validación OK: Configuración aplicada correctamente.")
 
-            return prompt, deviations
+            return prompt, desviaciones
 
-    def perform_backup(self, device_info, mode, tftp_ip=None, log_callback=None):
-        log = log_callback or (lambda *_: None)
-        log(">>> INICIANDO BACKUP...")
-        with ConnectHandler(**device_info) as conn:
+    def realizar_respaldo(self, info_dispositivo, modo, ip_tftp=None, callback_log=None):
+        registrar = callback_log or (lambda *_: None)
+        registrar(">>> INICIANDO BACKUP...")
+        with ConnectHandler(**info_dispositivo) as conn:
             conn.enable()
             hostname = conn.find_prompt().rstrip("#")
-            ts = datetime.datetime.now()
-            if mode == "Local (PC)":
+            sello_tiempo = datetime.datetime.now()
+            if modo == "Local (PC)":
                 os.makedirs("repositorio_backups", exist_ok=True)
-                fname = f"repositorio_backups/{hostname}_backup_{ts:%Y-%m-%d_%H-%M-%S}.txt"
-                with open(fname, "w", encoding="utf-8") as f:
-                    f.write(conn.send_command("show running-config"))
-                return "LOCAL", fname
-            if not tftp_ip:
+                nombre_archivo = f"repositorio_backups/{hostname}_backup_{sello_tiempo:%Y-%m-%d_%H-%M-%S}.txt"
+                with open(nombre_archivo, "w", encoding="utf-8") as archivo:
+                    archivo.write(conn.send_command("show running-config"))
+                return "LOCAL", nombre_archivo
+            if not ip_tftp:
                 raise ValueError("Falta IP TFTP")
-            fname = f"{hostname}-{ts:%Y%m%d-%H%M}.cfg"
-            out = conn.send_command_timing(f"copy running-config tftp://{tftp_ip}/{fname}")
-            if "Address or name" in out: out += conn.send_command_timing("\n")
-            if "Destination filename" in out: out += conn.send_command_timing("\n")
-            out_l = out.lower()
-            if any(word in out_l for word in ("error", "invalid", "fail", "timed out", "denied")):
-                raise Exception(f"Fallo TFTP:\n{out}")
-            if "bytes copied" in out_l or "ok" in out_l or "copy complete" in out_l:
-                return "REMOTE", fname
-            # Si no vemos error claro, asumimos éxito porque el dispositivo suele retornar el prompt sin eco.
-            return "REMOTE", fname
+            nombre_archivo = f"{hostname}-{sello_tiempo:%Y%m%d-%H%M}.cfg"
+            salida = conn.send_command_timing(f"copy running-config tftp://{ip_tftp}/{nombre_archivo}")
+            if "Address or name" in salida: salida += conn.send_command_timing("\n")
+            if "Destination filename" in salida: salida += conn.send_command_timing("\n")
+            salida_min = salida.lower()
+            if any(palabra in salida_min for palabra in ("error", "invalid", "fail", "timed out", "denied")):
+                raise Exception(f"Fallo TFTP:\n{salida}")
+            if "bytes copied" in salida_min or "ok" in salida_min or "copy complete" in salida_min:
+                return "REMOTE", nombre_archivo
+            return "REMOTE", nombre_archivo
 
-    def disconnect_device(self, device_info, log_callback=None):
-        log = log_callback or (lambda *_: None)
-        log(">>> CERRANDO SESIÓN SSH...")
+    def desconectar_dispositivo(self, info_dispositivo, callback_log=None):
+        registrar = callback_log or (lambda *_: None)
+        registrar(">>> CERRANDO SESIÓN SSH...")
         try:
-            with ConnectHandler(**device_info) as conn:
+            with ConnectHandler(**info_dispositivo) as conn:
                 conn.disconnect()
-            log("Sesión cerrada.")
+            registrar("Sesión cerrada.")
         except Exception as exc:
-            log(f"No se pudo cerrar sesión: {exc}")
+            registrar(f"No se pudo cerrar sesión: {exc}")
             raise
