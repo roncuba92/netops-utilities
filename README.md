@@ -1,4 +1,4 @@
-# NetConfigurator (Automatización de tareas repetitivas en Switch Cisco)
+# NetConfigurator (Automatización de tareas Switch Cisco)
 
 Antes de empezar, lee este README completo. Se debe usar `uv` en lugar de `pip` para instalar dependencias.
 
