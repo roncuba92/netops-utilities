@@ -1,15 +1,29 @@
 import os
 import datetime
+import re
 from netmiko import ConnectHandler
+
+ERROR_PATTERNS = (
+    "invalid",
+    "incomplete",
+    "ambiguous",
+    "error",
+    "denied",
+    "not allowed",
+    "% ",
+)
+
+SUCCESS_COPY_PATTERNS = ("bytes copied", "ok", "copy complete")
+
 
 class GestorRed:
     def obtener_info_dispositivo(self, ip, usuario, contrasena, secreto):
         return {
-            'device_type': 'cisco_ios',
-            'host': ip.strip(),
-            'username': usuario.strip(),
-            'password': contrasena.strip(),
-            'secret': secreto.strip(),
+            "device_type": "cisco_ios",
+            "host": ip.strip(),
+            "username": usuario.strip(),
+            "password": contrasena.strip(),
+            "secret": secreto.strip(),
         }
 
     def probar_conexion(self, info_dispositivo):
@@ -19,32 +33,59 @@ class GestorRed:
     def aplicar_cambios(self, info_dispositivo, lista_tareas, callback_log=None):
         registrar = callback_log or (lambda *_: None)
         registrar(">>> INICIANDO CONEXIÓN SSH...")
+
         hostname_esperado = None
         vlans_esperadas = {}
+        desviaciones = []
+
         with ConnectHandler(**info_dispositivo) as conn:
             conn.enable()
             for tipo_tarea, descripcion_tarea in lista_tareas:
                 registrar(f"Procesando: {descripcion_tarea}")
                 if tipo_tarea == "HOSTNAME":
                     nuevo_hostname = descripcion_tarea.split(":")[-1].strip()
-                    conn.send_config_set([f"hostname {nuevo_hostname}"])
+                    if not nuevo_hostname:
+                        desviaciones.append("Hostname vacío no es válido.")
+                        registrar("⚠ Hostname vacío; se omite.")
+                        continue
+                    salida = conn.send_config_set([f"hostname {nuevo_hostname}"])
+                    if self._salida_con_error(salida):
+                        desviaciones.append(f"Error al configurar hostname '{nuevo_hostname}': {salida.strip()}")
+                        registrar(f"⚠ Fallo hostname: {salida.strip()}")
+                        continue
                     conn.base_prompt = nuevo_hostname
                     hostname_esperado = nuevo_hostname
                     registrar(f"✔ Hostname actualizado: {conn.find_prompt()}")
+
                 elif tipo_tarea == "VLAN":
-                    try:
-                        vlan_id, vlan_nombre = descripcion_tarea.split("VLAN", 1)[1].split(": Nombre", 1)
-                        vlan_id, vlan_nombre = vlan_id.strip(), vlan_nombre.strip(" '")
-                        conn.send_config_set([f"vlan {vlan_id}", f"name {vlan_nombre}"])
-                        vlans_esperadas[vlan_id] = vlan_nombre
-                        registrar(f"✔ VLAN {vlan_id} configurada.")
-                    except Exception as exc:
-                        registrar(f"⚠ Error leyendo tarea: {descripcion_tarea} ({exc})")
+                    vlan_id, vlan_nombre = self._parsear_tarea_vlan(descripcion_tarea)
+                    if not vlan_id or not vlan_nombre:
+                        desviaciones.append(f"No se pudo leer VLAN de la tarea: {descripcion_tarea}")
+                        registrar(f"⚠ Tarea VLAN inválida: {descripcion_tarea}")
+                        continue
+
+                    if not vlan_id.isdigit() or not 1 <= int(vlan_id) <= 4094:
+                        desviaciones.append(f"VLAN {vlan_id} fuera de rango (1-4094)")
+                        registrar(f"⚠ VLAN {vlan_id} fuera de rango")
+                        continue
+
+                    salida = conn.send_config_set([f"vlan {vlan_id}", f"name {vlan_nombre}"])
+                    if self._salida_con_error(salida):
+                        desviaciones.append(f"No se pudo crear VLAN {vlan_id}: {salida.strip()}")
+                        registrar(f"⚠ Fallo VLAN {vlan_id}: {salida.strip()}")
+                        continue
+
+                    vlans_esperadas[vlan_id] = vlan_nombre
+                    registrar(f"✔ VLAN {vlan_id} configurada.")
+
+                else:
+                    registrar(f"⚠ Tipo de tarea no reconocido: {tipo_tarea}")
+                    desviaciones.append(f"Tarea desconocida ignorada: {tipo_tarea}")
+
             registrar("Guardando en NVRAM (wr mem)...")
             conn.save_config()
             prompt = conn.find_prompt()
 
-            desviaciones = []
             hostname_actual = conn.find_prompt().rstrip("#")
             if hostname_esperado and hostname_actual != hostname_esperado:
                 desviaciones.append(f"Hostname esperado '{hostname_esperado}', encontrado '{hostname_actual}'")
@@ -52,14 +93,15 @@ class GestorRed:
             if vlans_esperadas:
                 salida_vlans = conn.send_command("show vlan brief")
                 for vlan_id, vlan_nombre in vlans_esperadas.items():
-                    linea = next((ln for ln in salida_vlans.splitlines() if ln.strip().startswith(vlan_id)), None)
-                    if not linea:
+                    linea_vlan = self._buscar_linea_vlan(salida_vlans, vlan_id)
+                    if not linea_vlan:
                         desviaciones.append(f"VLAN {vlan_id} no existe")
                         continue
-                    partes = linea.split()
-                    nombre_actual = partes[1] if len(partes) > 1 else ""
+                    nombre_actual = linea_vlan.split()[1] if len(linea_vlan.split()) > 1 else ""
                     if nombre_actual.lower() != vlan_nombre.lower():
-                        desviaciones.append(f"VLAN {vlan_id} nombre esperado '{vlan_nombre}', encontrado '{nombre_actual}'")
+                        desviaciones.append(
+                            f"VLAN {vlan_id} nombre esperado '{vlan_nombre}', encontrado '{nombre_actual}'"
+                        )
 
             if desviaciones:
                 for desviacion in desviaciones:
@@ -82,16 +124,32 @@ class GestorRed:
                 with open(nombre_archivo, "w", encoding="utf-8") as archivo:
                     archivo.write(conn.send_command("show running-config"))
                 return "LOCAL", nombre_archivo
+
             if not ip_tftp:
                 raise ValueError("Falta IP TFTP")
+
             nombre_archivo = f"{hostname}-{sello_tiempo:%Y%m%d-%H%M}.cfg"
             salida = conn.send_command_timing(f"copy running-config tftp://{ip_tftp}/{nombre_archivo}")
-            if "Address or name" in salida: salida += conn.send_command_timing("\n")
-            if "Destination filename" in salida: salida += conn.send_command_timing("\n")
+            for _ in range(5):
+                salida_min_tmp = salida.lower()
+                if any(
+                    prompt in salida_min_tmp
+                    for prompt in ("address or name", "destination filename", "confirm", "overwrite")
+                ) or salida.strip().endswith("?"):
+                    # Responde a prompts interactivos adicionales.
+                    salida += conn.send_command_timing("\n")
+                else:
+                    break
+
+            salida_filtrada = self._filtrar_salida_tftp(salida)
+            if salida_filtrada:
+                registrar(f"Salida TFTP:\n{salida_filtrada}")
+
             salida_min = salida.lower()
-            if any(palabra in salida_min for palabra in ("error", "invalid", "fail", "timed out", "denied")):
+            if any(palabra in salida_min for palabra in ERROR_PATTERNS):
                 raise Exception(f"Fallo TFTP:\n{salida}")
-            if "bytes copied" in salida_min or "ok" in salida_min or "copy complete" in salida_min:
+            if not any(palabra in salida_min for palabra in SUCCESS_COPY_PATTERNS):
+                registrar("⚠ No se detectó texto de confirmación de copia; verifique el archivo en el TFTP.")
                 return "REMOTE", nombre_archivo
             return "REMOTE", nombre_archivo
 
@@ -105,3 +163,37 @@ class GestorRed:
         except Exception as exc:
             registrar(f"No se pudo cerrar sesión: {exc}")
             raise
+
+    @staticmethod
+    def _parsear_tarea_vlan(descripcion):
+        """
+        Extrae ID y nombre de una tarea en formato "Configurar VLAN <id>: Nombre '<nombre>'".
+        """
+        if not descripcion:
+            return None, None
+        match = re.search(r"VLAN\s+(\d+)\s*:\s*Nombre\s*'?(.*?)'?$", descripcion.strip())
+        if not match:
+            return None, None
+        return match.group(1), match.group(2).strip()
+
+    @staticmethod
+    def _salida_con_error(salida):
+        salida_min = salida.lower()
+        return any(patron in salida_min for patron in ERROR_PATTERNS)
+
+    @staticmethod
+    def _buscar_linea_vlan(salida_vlans, vlan_id):
+        return next((ln for ln in salida_vlans.splitlines() if ln.strip().startswith(str(vlan_id))), None)
+
+    @staticmethod
+    def _filtrar_salida_tftp(salida):
+        """
+        Oculta prompts interactivos repetitivos del comando copy.
+        """
+        lineas_filtradas = []
+        for linea in salida.splitlines():
+            linea_min = linea.strip().lower()
+            if any(palabra in linea_min for palabra in ("address or name", "destination filename", "confirm", "overwrite")):
+                continue
+            lineas_filtradas.append(linea)
+        return "\n".join(lineas_filtradas).strip()

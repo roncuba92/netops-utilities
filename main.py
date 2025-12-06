@@ -278,7 +278,7 @@ class AplicacionRed(ctk.CTk):
 
             if desviaciones:
                 self.registrar(">>> VALIDACIÓN CON ALERTAS. Revise mensajes anteriores.")
-                messagebox.showwarning("Validación", "Algunos cambios no se puedieron aplicar. Ver consola de logs.")
+                messagebox.showwarning("Validación", "Algunos cambios no se aplicaron. Ver consola de logs.")
             else:
                 self.registrar(">>> FINALIZADO CON ÉXITO. Validación OK.")
                 messagebox.showinfo("Éxito", "Cambios aplicados y validados.")
