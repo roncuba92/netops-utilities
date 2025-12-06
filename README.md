@@ -1,6 +1,8 @@
-# NetConfigurator (Automatización de Switch Cisco)
+# NetConfigurator (Automatización de tareas repetitivas en Switch Cisco)
 
-Script en Python con interfaz gráfica (CustomTkinter) para configurar hostname y VLANs en un switch Cisco IOS (físico o simulado) usando Netmiko. Permite validar la configuración aplicada, guardar en NVRAM y realizar respaldos locales o vía TFTP.
+Antes de empezar, lee este README completo. Se debe usar `uv` en lugar de `pip` para instalar dependencias.
+
+Script en Python con interfaz gráfica (CustomTkinter) para configurar hostname y VLANs (ID y Nombre) en un switch Cisco IOS (físico o simulado) usando Netmiko. Permite validar la configuración aplicada, guardar en NVRAM y realizar respaldos locales o de forma remota vía TFTP.
 
 ## Requisitos previos
 - Python 3.10 o superior.
@@ -8,22 +10,24 @@ Script en Python con interfaz gráfica (CustomTkinter) para configurar hostname 
 - Acceso SSH habilitado en el switch y credenciales con modo enable.
 - Opcional: servidor TFTP accesible desde el switch (para backup remoto).
 
-## Instalación
+## Instalación (con uv)
+1) Instala `uv` si no lo tienes: https://docs.astral.sh/uv/getting-started/
+2) Crea el entorno y sincroniza dependencias:
 ```bash
-python -m venv .venv
+uv venv
 source .venv/bin/activate  # En Windows: .venv\Scripts\activate
-pip install --upgrade pip
-pip install -e .
+uv sync
 ```
 Si prefieres sin modo editable:
 ```bash
-pip install customtkinter netmiko
+uv pip install customtkinter netmiko
 ```
 
 ## Ejecución
 ```bash
-python main.py
+uv run python main.py
 ```
+También puedes activar el entorno (`source .venv/bin/activate`) y ejecutar `python main.py` si lo prefieres.
 
 ## Uso rápido (UI)
 1. Completa IP, usuario, password y enable; pulsa **Conectar**.
@@ -33,7 +37,7 @@ python main.py
 5. Pulsa **Aplicar Cambios** para enviar la configuración; la app valida hostname y VLANs y muestra desviaciones en los logs/alertas.
 6. Respaldo:
    - **Local (PC)**: guarda `show running-config` en `repositorio_backups/`.
-   - **Servidor Remoto (TFTP)**: ingresa IP TFTP y pulsa **Guardar en PC/Enviar a TFTP**. La salida del comando de copia se registra.
+   - **Servidor Remoto (TFTP)**: ingresa IP TFTP y pulsa **Enviar a TFTP**. La salida del comando de copia se registra.
 
 ## Validación y logs
 - El backend revisa que el hostname resulte el esperado y que cada VLAN solicitada exista con el nombre indicado; cualquier discrepancia se muestra en los logs y en la alerta de la UI.
@@ -44,7 +48,6 @@ python main.py
 - `core.py`: lógica de conexión, aplicación de cambios, validación y backups.
 - `pyproject.toml`: metadatos y dependencias del proyecto.
 
+
 ## Notas y buenas prácticas
 - Ejecuta la app desde una red con alcance SSH al switch y con la IP del TFTP accesible (si usas backup remoto).
-- Recomendado: commits frecuentes con mensajes descriptivos para documentar cambios.
-- Puedes añadir capturas de pantalla en este README si las necesitas para la entrega.***
