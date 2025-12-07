@@ -1,7 +1,5 @@
 # NetConfigurator (Automatización de tareas Switch Cisco)
 
-Antes de empezar, lee este README completo. Se debe usar `uv` en lugar de `pip` para instalar dependencias.
-
 Script en Python con interfaz gráfica (CustomTkinter) para configurar hostname y VLANs (ID y Nombre) en un switch Cisco IOS (físico o simulado) usando Netmiko. Permite validar la configuración aplicada, guardar en NVRAM y realizar respaldos locales o de forma remota vía TFTP.
 
 ## Requisitos previos
@@ -30,13 +28,14 @@ uv run python main.py
 También puedes activar el entorno (`source .venv/bin/activate`) y ejecutar `python main.py` si lo prefieres.
 
 ## Uso rápido (UI)
-1. Completa IP, usuario, password y enable; pulsa **Conectar**.
-2. Para hostname: escribe el nuevo nombre y pulsa **Agregar**.
-3. Para VLANs: ingresa ID (1–4094) y nombre, pulsa **Agregar** tantas como necesites.
-4. Las tareas aparecerán en la lista de la derecha; puedes quitar las seleccionadas con **Quitar Seleccionado**.
-5. Pulsa **Aplicar Cambios** para enviar la configuración; la app valida hostname y VLANs y muestra desviaciones en los logs/alertas.
-6. Respaldo:
-   - **Local (PC)**: guarda `show running-config` en `repositorio_backups/`.
+1. Ingresa dirección IP del switch, usuario y password local, password de enable; pulsa **Conectar**.
+2. Para hostname: escribe el nombre que deseas configurarle al switch; pulsa **Agregar**.
+3. Para VLANs: ingresa ID (1–4094) y nombre; pulsa **Agregar**, tantas VLANs como necesites.
+4. Las tareas aparecerán en el panel de la derecha (TAREAS A EJECUTAR); puedes eliminar la que desees, seleccionándola y luego presionando **Quitar Seleccionado**.
+5. Pulsa **Aplicar Cambios** para enviar la configuración al switch; la app valida hostname, VLANs y muestra desviaciones en los logs/alertas.
+6. En el caso de las VLANs reservadas por el sistema (1002-1005) si intentas modificar alguna, habrá un error de validación porque el switch no permite modificarlas; se mostrará una alerta en la ventana de logs del sistema. (Se dejó intencionalmente la posibilidad de querer modificar estas VLANs para probar la funcionalidad de validación)
+7. Respaldo:
+   - **Local (PC)**: guarda `show running-config` en `repositorio_backups/` (se crea en la raíz del proyecto si no existe).
    - **Servidor Remoto (TFTP)**: ingresa IP TFTP y pulsa **Enviar a TFTP**. La salida del comando de copia se registra.
 
 ## Validación y logs
