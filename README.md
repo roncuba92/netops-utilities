@@ -1,4 +1,4 @@
-# Cisco Challenge (NetConfigurator y AutoVPN)
+# netops-utilities (NetConfigurator y AutoVPN)
 
 Este README sirve como referencia breve. Para instalación y uso detallado, revisa los README dentro de cada proyecto.
 

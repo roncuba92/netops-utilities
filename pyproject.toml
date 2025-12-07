@@ -1,5 +1,5 @@
 [project]
-name = "cisco-challenge"
+name = "netops-utilities"
 version = "0.1.0"
 description = "Monorepo con NetConfigurator (UI para hostname/VLAN/backup en Cisco IOS) y AutoVPN (generador de plan/payloads IPSec FortiGate ↔ Palo Alto)."
 readme = "README.md"
