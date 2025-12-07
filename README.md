@@ -47,7 +47,7 @@ También puedes activar el entorno (`source .venv/bin/activate`) y ejecutar `pyt
 - `main.py`: interfaz gráfica y gestión de tareas encoladas.
 - `core.py`: lógica de conexión, aplicación de cambios, validación y backups.
 - `pyproject.toml`: metadatos y dependencias del proyecto.
-- `screenshots/`: capturas de la UI y pruebas.
+- `screenshots/`: capturas de la UI y pruebas (ver `screenshots/ORDER.md` para un recorrido sugerido).
 
 ## Notas y buenas prácticas
 - Ejecuta la app desde una red con alcance SSH al switch y con la IP del TFTP accesible (si usas backup remoto).
