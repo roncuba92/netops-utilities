@@ -1,7 +1,7 @@
 [project]
 name = "cisco-challenge"
 version = "0.1.0"
-description = "UI en Python (CustomTkinter) para configurar hostname y VLANs en switches Cisco IOS vía Netmiko, validar cambios y hacer backups locales/TFTP."
+description = "Monorepo con NetConfigurator (UI para hostname/VLAN/backup en Cisco IOS) y AutoVPN (generador de plan/payloads IPSec FortiGate ↔ Palo Alto)."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

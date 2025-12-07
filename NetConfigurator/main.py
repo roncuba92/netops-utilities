@@ -31,7 +31,8 @@ class AplicacionRed(ctk.CTk):
         self.backend = GestorRed()
         self.tareas = {}
         self.title("NetConfigurator")
-        self.geometry("1100x720") 
+        self.geometry("1100x720")
+        self.resizable(False, False)
         self.configure(fg_color=COLOR_FONDO_VENTANA)
         
         self.grid_columnconfigure(0, weight=1)
@@ -59,8 +60,8 @@ class AplicacionRed(ctk.CTk):
         ctk.CTkLabel(barra_encabezado, text="CONEXIÓN", font=FONT_BOLD, text_color="#555").pack(side="left", padx=(0,15))
         self.entrada_ip = self._crear_entrada(barra_encabezado, "Dirección IP", width=110)
         self.entrada_usuario = self._crear_entrada(barra_encabezado, "Usuario", width=100)
-        self.entrada_contrasena = self._crear_entrada(barra_encabezado, "Password", es_password=True, width=100)
-        self.entrada_secreto = self._crear_entrada(barra_encabezado, "Enable", es_password=True, width=100)
+        self.entrada_password = self._crear_entrada(barra_encabezado, "Password", es_password=True, width=100)
+        self.entrada_enable = self._crear_entrada(barra_encabezado, "Enable", es_password=True, width=100)
 
         boton_desconectar = ctk.CTkButton(barra_encabezado, text="Desconectar", command=self.desconectar_sesion,
                                    height=BTN_HEIGHT, font=FONT_UI, text_color="#C0392B",
@@ -227,7 +228,7 @@ class AplicacionRed(ctk.CTk):
         vlan_id = self.entrada_vlan_id.get().strip()
         vlan_nombre = self.entrada_vlan_nombre.get().strip()
         if not vlan_id.isdigit():
-            messagebox.showwarning("VLAN", "El ID debe ser numérico.")
+            messagebox.showwarning("VLAN", "El ID debe ser válido (1-4094).")
             return
         if not vlan_nombre:
             messagebox.showwarning("VLAN", "Ingrese un nombre para la VLAN.")
@@ -256,8 +257,8 @@ class AplicacionRed(ctk.CTk):
         return self.backend.obtener_info_dispositivo(
             self.entrada_ip.get(),
             self.entrada_usuario.get(),
-            self.entrada_contrasena.get(),
-            self.entrada_secreto.get()
+            self.entrada_password.get(),
+            self.entrada_enable.get()
         )
 
     def probar_conexion(self): 
@@ -324,8 +325,8 @@ class AplicacionRed(ctk.CTk):
                 self.registrar(f"Error al cerrar sesión: {e}")
         self.etiqueta_estado.configure(text="Desconectado", text_color="gray")
         self.etiqueta_punto.configure(text_color="gray")
-        self.entrada_contrasena.delete(0, 'end')
-        self.entrada_secreto.delete(0, 'end')
+        self.entrada_password.delete(0, 'end')
+        self.entrada_enable.delete(0, 'end')
         self.registrar(">>> Sesión finalizada.")
         messagebox.showinfo("Info", "Desconectado. Credenciales borradas.")
 

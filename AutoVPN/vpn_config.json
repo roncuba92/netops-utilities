@@ -1,0 +1,26 @@
+{
+  "name": "fgt-pa-ipsec",
+  "fortigate_wan_ip": "198.51.100.10",
+  "paloalto_wan_ip": "198.51.100.20",
+  "tunnel_cidr": "169.255.1.0/30",
+  "fortigate_tunnel_ip": "169.255.1.1",
+  "paloalto_tunnel_ip": "169.255.1.2",
+  "fortigate_local_subnets": [
+    "192.168.1.0/24"
+  ],
+  "paloalto_local_subnets": [
+    "10.20.1.0/24"
+  ],
+  "pre_shared_key": "ChangeMe123!",
+  "ike_version": "ikev2",
+  "dpd_interval": 10,
+  "dpd_retry": 3,
+  "phase1_encryption": "aes256",
+  "phase1_integrity": "sha256",
+  "phase1_dh_group": "14",
+  "phase2_encryption": "aes256",
+  "phase2_integrity": "sha256",
+  "phase2_pfs_group": "14",
+  "phase1_lifetime": 28800,
+  "phase2_lifetime": 3600
+}

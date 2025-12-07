@@ -7,13 +7,13 @@ ERROR_PATTERNS = ("invalid","incomplete","ambiguous","error","denied","not allow
 SUCCESS_COPY_PATTERNS = ("bytes copied", "ok", "copy complete")
 
 class GestorRed:
-    def obtener_info_dispositivo(self, ip, usuario, contrasena, secreto):
+    def obtener_info_dispositivo(self, ip, usuario, password, enable):
         return {
             "device_type": "cisco_ios",
             "host": ip.strip(),
             "username": usuario.strip(),
-            "password": contrasena.strip(),
-            "secret": secreto.strip(),
+            "password": password.strip(),
+            "secret": enable.strip(),
         }
 
     def probar_conexion(self, info_dispositivo):
@@ -130,7 +130,6 @@ class GestorRed:
                     prompt in salida_min_tmp
                     for prompt in ("address or name", "destination filename", "confirm", "overwrite")
                 ) or salida.strip().endswith("?"):
-                    # Responde a prompts interactivos adicionales.
                     salida += conn.send_command_timing("\n")
                 else:
                     break
@@ -160,9 +159,6 @@ class GestorRed:
 
     @staticmethod
     def _parsear_tarea_vlan(descripcion):
-        """
-        Extrae ID y nombre de una tarea en formato "Configurar VLAN <id>: Nombre '<nombre>'".
-        """
         if not descripcion:
             return None, None
         match = re.search(r"VLAN\s+(\d+)\s*:\s*Nombre\s*'?(.*?)'?$", descripcion.strip())
@@ -181,9 +177,6 @@ class GestorRed:
 
     @staticmethod
     def _filtrar_salida_tftp(salida):
-        """
-        Oculta prompts interactivos repetitivos del comando copy.
-        """
         lineas_filtradas = []
         for linea in salida.splitlines():
             linea_min = linea.strip().lower()
