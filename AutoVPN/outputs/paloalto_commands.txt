@@ -1,0 +1,30 @@
+set network ike crypto-profiles ike-crypto-profiles fgt-pa-ipsec-ike encryption aes256
+set network ike crypto-profiles ike-crypto-profiles fgt-pa-ipsec-ike hash sha256
+set network ike crypto-profiles ike-crypto-profiles fgt-pa-ipsec-ike dh-group group14
+set network ike crypto-profiles ike-crypto-profiles fgt-pa-ipsec-ike lifetime 28800
+set network ike gateway fgt-pa-ipsec authentication pre-shared-key key 'SuperSecreto007!'
+set network ike gateway fgt-pa-ipsec local-address ip 198.51.100.20
+set network ike gateway fgt-pa-ipsec peer-address ip 198.51.100.10
+set network ike gateway fgt-pa-ipsec protocol ikev2
+set network ike gateway fgt-pa-ipsec ike-crypto-profile fgt-pa-ipsec-ike
+set network ike gateway fgt-pa-ipsec dead-peer-detection interval 10 retry 3
+set network tunnel ipsec-crypto-profiles ipsec-crypto-profiles fgt-pa-ipsec-ipsec esp encryption aes256
+set network tunnel ipsec-crypto-profiles ipsec-crypto-profiles fgt-pa-ipsec-ipsec esp authentication sha256
+set network tunnel ipsec-crypto-profiles ipsec-crypto-profiles fgt-pa-ipsec-ipsec dh-group group14
+set network tunnel ipsec-crypto-profiles ipsec-crypto-profiles fgt-pa-ipsec-ipsec lifetime 3600
+set network tunnel ipsec fgt-pa-ipsec auto-key ike-gateway fgt-pa-ipsec
+set network tunnel ipsec fgt-pa-ipsec auto-key ipsec-crypto-profile fgt-pa-ipsec-ipsec
+set network tunnel ipsec fgt-pa-ipsec tunnel-interface tunnel.10
+set network interface tunnel units tunnel.10 ip 169.255.1.2/30
+set network interface tunnel units tunnel.10 comment 'VPN a FortiGate fgt-pa-ipsec'
+set network virtual-router default interface tunnel.10
+set network zone vpn-network network layer3 tunnel.10
+set network virtual-router default routing-table ip static-route to-fgt-pa-ipsec-1 destination 192.168.1.0/24 nexthop ip-address 169.255.1.1
+set network virtual-router default routing-table ip static-route to-fgt-pa-ipsec-2 destination 192.168.2.0/24 nexthop ip-address 169.255.1.1
+set rulebase security rules pa-out-web from vpn-network to vpn-network source 10.20.1.0/24 destination 192.168.1.0/24 application any service service-https service-ssh action allow
+set rulebase security rules pa-out-db from vpn-network to vpn-network source 10.20.1.0/24 destination 192.168.2.0/24 application any service service-mysql action allow
+set network tunnel ipsec fgt-pa-ipsec auto-key proxy-id fgt-pa-ipsec-p2-1 local 10.20.1.0/24 remote 192.168.1.0/24 protocol any
+set network tunnel ipsec fgt-pa-ipsec auto-key proxy-id fgt-pa-ipsec-p2-2 local 10.20.2.0/24 remote 192.168.1.0/24 protocol any
+set network tunnel ipsec fgt-pa-ipsec auto-key proxy-id fgt-pa-ipsec-p2-3 local 10.20.1.0/24 remote 192.168.2.0/24 protocol any
+set network tunnel ipsec fgt-pa-ipsec auto-key proxy-id fgt-pa-ipsec-p2-4 local 10.20.2.0/24 remote 192.168.2.0/24 protocol any
+commit

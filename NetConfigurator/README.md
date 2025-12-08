@@ -1,6 +1,6 @@
-# NetConfigurator (Automatización de tareas Switch Cisco)
+# NetConfigurator (Automatización de tareas en Switch Cisco)
 
-Proyecto ubicado en `NetConfigurator/`. Script en Python con interfaz gráfica (CustomTkinter) para configurar hostname y VLANs (ID y Nombre) en un switch Cisco IOS (físico o simulado) usando Netmiko. Permite validar la configuración aplicada, guardar en NVRAM y realizar respaldos locales o de forma remota vía TFTP.
+Script en Python con interfaz gráfica (CustomTkinter) para configurar hostname y VLANs (ID y Nombre) en un switch Cisco IOS (físico o simulado) usando Netmiko. Permite validar la configuración aplicada, guardar en NVRAM y realizar respaldos locales o de forma remota vía TFTP.
 
 ## Requisitos previos
 - Python 3.10 o superior.

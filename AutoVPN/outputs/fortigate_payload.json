@@ -1,0 +1,228 @@
+{
+  "phase1-interface": {
+    "endpoint": "/api/v2/cmdb/vpn.ipsec/phase1-interface",
+    "payload": {
+      "name": "fgt-pa-ipsec",
+      "type": "static",
+      "interface": "port1",
+      "local-gw": "198.51.100.10",
+      "remote-gw": "198.51.100.20",
+      "psksecret": "SuperSecreto007!",
+      "ike-version": 2,
+      "proposal": "aes256-sha256",
+      "dpd": "on-idle",
+      "dpd-retryinterval": 10,
+      "dhgrp": "14",
+      "keylife": 28800,
+      "nattraversal": "enable"
+    }
+  },
+  "phase2-interface": {
+    "endpoint": "/api/v2/cmdb/vpn.ipsec/phase2-interface",
+    "payloads": [
+      {
+        "phase1name": "fgt-pa-ipsec",
+        "name": "fgt-pa-ipsec-p2-1",
+        "proposal": "aes256-sha256",
+        "pfs": "enable",
+        "dhgrp": "14",
+        "keylifeseconds": 3600,
+        "src-subnet": "192.168.1.0/24",
+        "dst-subnet": "10.20.1.0/24"
+      },
+      {
+        "phase1name": "fgt-pa-ipsec",
+        "name": "fgt-pa-ipsec-p2-2",
+        "proposal": "aes256-sha256",
+        "pfs": "enable",
+        "dhgrp": "14",
+        "keylifeseconds": 3600,
+        "src-subnet": "192.168.1.0/24",
+        "dst-subnet": "10.20.2.0/24"
+      },
+      {
+        "phase1name": "fgt-pa-ipsec",
+        "name": "fgt-pa-ipsec-p2-3",
+        "proposal": "aes256-sha256",
+        "pfs": "enable",
+        "dhgrp": "14",
+        "keylifeseconds": 3600,
+        "src-subnet": "192.168.2.0/24",
+        "dst-subnet": "10.20.1.0/24"
+      },
+      {
+        "phase1name": "fgt-pa-ipsec",
+        "name": "fgt-pa-ipsec-p2-4",
+        "proposal": "aes256-sha256",
+        "pfs": "enable",
+        "dhgrp": "14",
+        "keylifeseconds": 3600,
+        "src-subnet": "192.168.2.0/24",
+        "dst-subnet": "10.20.2.0/24"
+      }
+    ]
+  },
+  "firewall-address": {
+    "endpoint": "/api/v2/cmdb/firewall/address",
+    "payloads": [
+      {
+        "name": "fgt-pa-ipsec-fgt-1",
+        "subnet": "192.168.1.0/24",
+        "type": "ipmask",
+        "comment": "Subred local FortiGate para tunel"
+      },
+      {
+        "name": "fgt-pa-ipsec-fgt-2",
+        "subnet": "192.168.2.0/24",
+        "type": "ipmask",
+        "comment": "Subred local FortiGate para tunel"
+      },
+      {
+        "name": "fgt-pa-ipsec-pa-1",
+        "subnet": "10.20.1.0/24",
+        "type": "ipmask",
+        "comment": "Subred remota Palo Alto para tunel"
+      },
+      {
+        "name": "fgt-pa-ipsec-pa-2",
+        "subnet": "10.20.2.0/24",
+        "type": "ipmask",
+        "comment": "Subred remota Palo Alto para tunel"
+      }
+    ]
+  },
+  "firewall-addrgrp": {
+    "endpoint": "/api/v2/cmdb/firewall/addrgrp",
+    "payloads": [
+      {
+        "name": "grp-fgt-pa-ipsec-fgt-local",
+        "member": [
+          {
+            "name": "fgt-pa-ipsec-fgt-1"
+          },
+          {
+            "name": "fgt-pa-ipsec-fgt-2"
+          }
+        ],
+        "comment": "Agrupa subredes locales FortiGate"
+      },
+      {
+        "name": "grp-fgt-pa-ipsec-pa-remote",
+        "member": [
+          {
+            "name": "fgt-pa-ipsec-pa-1"
+          },
+          {
+            "name": "fgt-pa-ipsec-pa-2"
+          }
+        ],
+        "comment": "Agrupa subredes remotas Palo Alto"
+      }
+    ]
+  },
+  "system-interface": {
+    "endpoint": "/api/v2/cmdb/system/interface",
+    "payload": {
+      "name": "fgt-pa-ipsec",
+      "type": "tunnel",
+      "ip": "169.255.1.1 255.255.255.252",
+      "remote-ip": "169.255.1.2",
+      "interface": "port1",
+      "alias": "VPN fgt-pa-ipsec"
+    }
+  },
+  "static-route": {
+    "endpoint": "/api/v2/cmdb/router/static",
+    "payloads": [
+      {
+        "dst": "10.20.1.0/24",
+        "gateway": "169.255.1.2",
+        "device": "fgt-pa-ipsec",
+        "distance": 10,
+        "name": "to-pa-1"
+      },
+      {
+        "dst": "10.20.2.0/24",
+        "gateway": "169.255.1.2",
+        "device": "fgt-pa-ipsec",
+        "distance": 10,
+        "name": "to-pa-2"
+      }
+    ]
+  },
+  "policy": {
+    "endpoint": "/api/v2/cmdb/firewall/policy",
+    "payloads": [
+      {
+        "name": "fgt-out-web",
+        "srcintf": [
+          {
+            "name": "internal"
+          }
+        ],
+        "dstintf": [
+          {
+            "name": "fgt-pa-ipsec"
+          }
+        ],
+        "srcaddr": [
+          {
+            "name": "grp-fgt-pa-ipsec-fgt-local"
+          }
+        ],
+        "dstaddr": [
+          {
+            "name": "grp-fgt-pa-ipsec-pa-remote"
+          }
+        ],
+        "action": "ipsec",
+        "schedule": "always",
+        "service": [
+          {
+            "name": "HTTPS"
+          },
+          {
+            "name": "SSH"
+          }
+        ],
+        "logtraffic": "all",
+        "nat": "disable"
+      },
+      {
+        "name": "fgt-in-db",
+        "srcintf": [
+          {
+            "name": "fgt-pa-ipsec"
+          }
+        ],
+        "dstintf": [
+          {
+            "name": "internal"
+          }
+        ],
+        "srcaddr": [
+          {
+            "name": "grp-fgt-pa-ipsec-pa-remote"
+          }
+        ],
+        "dstaddr": [
+          {
+            "name": "grp-fgt-pa-ipsec-fgt-local"
+          }
+        ],
+        "action": "ipsec",
+        "schedule": "always",
+        "service": [
+          {
+            "name": "MYSQL"
+          },
+          {
+            "name": "RDP"
+          }
+        ],
+        "logtraffic": "all",
+        "nat": "disable"
+      }
+    ]
+  }
+}

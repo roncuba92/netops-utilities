@@ -6,21 +6,56 @@
   "fortigate_tunnel_ip": "169.255.1.1",
   "paloalto_tunnel_ip": "169.255.1.2",
   "fortigate_local_subnets": [
-    "192.168.1.0/24"
+    "192.168.1.0/24",
+    "192.168.2.0/24"
   ],
   "paloalto_local_subnets": [
-    "10.20.1.0/24"
+    "10.20.1.0/24",
+    "10.20.2.0/24"
   ],
-  "pre_shared_key": "ChangeMe123!",
+  "pre_shared_key": "SuperSecreto007!",
   "ike_version": "ikev2",
+  "phase1_proposal": "aes256-sha256",
+  "phase1_dh": "14",
+  "phase2_pfs": "14",
+  "phase1_lifetime": 28800,
+  "phase2_lifetime": 3600,
   "dpd_interval": 10,
   "dpd_retry": 3,
-  "phase1_encryption": "aes256",
-  "phase1_integrity": "sha256",
-  "phase1_dh_group": "14",
-  "phase2_encryption": "aes256",
-  "phase2_integrity": "sha256",
-  "phase2_pfs_group": "14",
-  "phase1_lifetime": 28800,
-  "phase2_lifetime": 3600
+  "fortigate_policies": [
+    {
+      "name": "fgt-out-web",
+      "src_subnets": ["192.168.1.0/24"],
+      "dst_subnets": ["10.20.1.0/24"],
+      "srcintf": ["internal"],
+      "dstintf": ["fgt-pa-ipsec"],
+      "services": ["HTTPS", "SSH"]
+    },
+    {
+      "name": "fgt-in-db",
+      "src_subnets": ["10.20.1.0/24"],
+      "dst_subnets": ["192.168.2.0/24"],
+      "srcintf": ["fgt-pa-ipsec"],
+      "dstintf": ["internal"],
+      "services": ["MYSQL", "RDP"]
+    }
+  ],
+  "paloalto_policies": [
+    {
+      "name": "pa-out-web",
+      "src_subnets": ["10.20.1.0/24"],
+      "dst_subnets": ["192.168.1.0/24"],
+      "services": ["service-https", "service-ssh"],
+      "srcintf": ["vpn-network"],
+      "dstintf": ["vpn-network"]
+    },
+    {
+      "name": "pa-out-db",
+      "src_subnets": ["10.20.1.0/24"],
+      "dst_subnets": ["192.168.2.0/24"],
+      "services": ["service-mysql"],
+      "srcintf": ["vpn-network"],
+      "dstintf": ["vpn-network"]
+    }
+  ]
 }

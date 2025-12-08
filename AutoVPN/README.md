@@ -1,16 +1,29 @@
-# AutoVPN (Plan IPSec FortiGate ↔ Palo Alto)
+# AutoVPN (FortiGate ↔ Palo Alto IPSec)
 
-Proyecto ubicado en `AutoVPN/`. Genera un plan en Markdown y ejemplos de payloads/comandos para automatizar un túnel IPSec entre FortiGate y Palo Alto.
+Automatiza la generación y validación de un túnel IPSec site-to-site. La fuente de verdad es `vpn_config.json`; todos los artefactos se derivan de ese archivo.
+
+## Flujo de trabajo
+1) **Definición (Input)**: edita `vpn_config.json` (IPs WAN, IPs de túnel, subredes locales, PSK, propuestas criptográficas, lifetimes, DPD).
+2) **Generación (Procesamiento)**: ejecuta `python3 AutoVPN/generate_deployment.py` (lee, valida, normaliza y crea la carpeta `outputs/`).
+3) **Salidas (Artefactos)** en `AutoVPN/outputs/`:
+   - `VPN_PLAN.md`: documentación con tabla de parámetros, flujo lógico y sección obligatoria de "Desafíos y Consideraciones".
+   - `fortigate_payload.json`: cuerpo JSON listo para `/api/v2/cmdb/...` en FortiGate.
+   - `paloalto_commands.txt`: comandos `set` listos para cargar en candidate-config de Palo Alto (luego `commit`).
+4) **Validación (Check)**: ejecuta `python3 AutoVPN/validate_vpn.py --fortigate-host https://FGT --fortigate-token <token> --paloalto-host <PA> --paloalto-user <user> --paloalto-password <pass>` para confirmar que el túnel esté UP (REST en FGT y SSH/Netmiko en PA).
+
+## Archivos relevantes
+- `vpn_config.json`: fuente de verdad de parámetros.
+- `generate_deployment.py`: genera los artefactos en `outputs/`.
+- `deploy_vpn.py`: aplica los artefactos en FortiGate (REST) y Palo Alto (SSH/Netmiko).
+- `validate_vpn.py`: verifica el estado del túnel (SA IKE/IPSec).
+- `outputs/`: artefactos generados (se crean al correr el generador).
 
 ## Uso rápido
-- Con parámetros por defecto: `python AutoVPN/vpn.py --output AutoVPN/VPN_PLAN.md`
-- Con JSON de entrada: `python AutoVPN/vpn.py --config AutoVPN/vpn_config.json --output AutoVPN/VPN_PLAN.md`
-- Puedes sobreescribir campos puntuales con flags (`--name`, `--fgt-wan`, `--pa-wan`, `--tunnel-cidr`, `--fgt-tunnel-ip`, `--pa-tunnel-ip`, `--fgt-local`, `--pa-local`, `--psk`, `--ike-version`).
+- Generar artefactos: `python3 AutoVPN/generate_deployment.py --config AutoVPN/vpn_config.json`
+- Desplegar artefactos: `python3 AutoVPN/deploy_vpn.py --fortigate-host https://198.51.100.10 --fortigate-token <token> --paloalto-host 198.51.100.20 --paloalto-user admin --paloalto-password <pass> [--verify-ssl]`
+- Validar túnel: `python3 AutoVPN/validate_vpn.py --config AutoVPN/vpn_config.json --fortigate-host https://198.51.100.10 --fortigate-token <token> --paloalto-host 198.51.100.20 --paloalto-user admin --paloalto-password <pass>`
 
-## Archivos
-- `vpn.py`: script principal (solo usa librerías estándar).
-- `vpn_config.json`: ejemplo de parámetros para generar el plan.
-- `VPN_PLAN.md`: salida de ejemplo generada con los valores por defecto.
-
-## Salida
-Genera un Markdown con: resumen de parámetros, pasos de automatización, payloads REST para FortiGate y comandos `set` para Palo Alto. El archivo se crea en la ruta que indiques con `--output`.
+## Notas
+- Palo Alto se configura en candidate-config; recuerda hacer `commit`.
+- FortiGate usa `/api/v2/cmdb/...`; el payload generado es JSON listo para API.
+- Dependencias: `requests` y `netmiko` (ver `pyproject.toml`).
