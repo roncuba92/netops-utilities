@@ -15,17 +15,20 @@ Proyecto paralelo a `AutoVPN-SSH` que aplica la VPN FortiGate ↔ Palo Alto usan
 
 ## Uso rápido
 1) Edita parámetros en `vpn_config.json`.
-2) Solo generar artefactos:
+2) Solo generar artefactos (macOS/Linux con `python3`):
    ```bash
    python3 AutoVPN-API/deploy_vpn.py --config AutoVPN-API/vpn_config.json --fortigate-host 10.24.133.202 --fortigate-token <TOKEN> --paloalto-host <PA_IP> --paloalto-api-key <PA_KEY> --dry-run
    ```
-3) Aplicar Forti (API) + Palo (SSH):
+   En Windows usa `python` y ajusta la ruta: `python AutoVPN\\AutoVPN-API\\deploy_vpn.py --config AutoVPN\\AutoVPN-API\\vpn_config.json ...`
+3) Aplicar Forti (API) + Palo (API):
    ```bash
   python3 AutoVPN-API/deploy_vpn.py \
     --config AutoVPN-API/vpn_config.json \
     --fortigate-host 10.24.133.202 --fortigate-token <TOKEN> \
     --paloalto-host <PA_IP> --paloalto-api-key <PA_KEY> [--paloalto-timeout 90]
    ```
+   En Windows: `python AutoVPN\\AutoVPN-API\\deploy_vpn.py ...`
+
    Añade `--skip-paloalto` si solo quieres Forti. Usa `--fortigate-verify`/`--paloalto-verify` si tienes certificados válidos y quieres validar TLS. Ajusta `--paloalto-timeout` si el commit demora más de ~60s.
 
 Artefactos generados en `outputs/`:
