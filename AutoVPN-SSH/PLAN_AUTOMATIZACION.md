@@ -24,10 +24,10 @@ Documento mínimo que cubre los puntos solicitados: parámetros, herramientas/AP
 
 ## Pasos de Automatización
 1. Cargar y validar parámetros desde `vpn_config.json` (IPs válidas, /30 contiene las IP de túnel, subredes sin traslape, PSK no vacía).
-2. Generar comandos CLI para ambos equipos: `python3 AutoVPN/generate_deployment.py --config AutoVPN/vpn_config.json` escribe `outputs/fortigate_cli.txt` y `outputs/paloalto_cli.txt` (y un plan breve).
-3. Aplicar por SSH: `python3 AutoVPN/deploy_vpn.py ...` lee el mismo JSON, envía los comandos a FortiGate y Palo Alto; en Palo Alto termina con `commit`.
+2. Generar comandos CLI para ambos equipos: `python3 AutoVPN-SSH/generate_deployment.py --config AutoVPN-SSH/vpn_config.json` escribe `outputs/fortigate_cli.txt` y `outputs/paloalto_cli.txt` (y un plan breve).
+3. Aplicar por SSH: `python3 AutoVPN-SSH/deploy_vpn.py ...` lee el mismo JSON, envía los comandos a FortiGate y Palo Alto; en Palo Alto termina con `commit`.
 4. Guardar artefactos en `outputs/` para revisión/auditoría.
-5. Validar conectividad con `python3 AutoVPN/validate_vpn.py ...` haciendo ping desde cada firewall hacia la subred remota.
+5. Validar conectividad con `python3 AutoVPN-SSH/validate_vpn.py ...` haciendo ping desde cada firewall hacia la subred remota.
 
 ## Consideraciones Específicas
 - Propuestas, DH y PFS deben coincidir exactamente en ambos lados; proxy-id (PA) y selectores de Phase 2 (FGT) deben representar las mismas redes.

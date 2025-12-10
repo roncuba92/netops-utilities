@@ -1,0 +1,39 @@
+{
+  "name": "fgt-pa-ipsec",
+  "fortigate_wan_ip": "198.51.100.10",
+  "paloalto_wan_ip": "203.0.113.10",
+  "tunnel_cidr": "169.255.1.0/30",
+  "fortigate_tunnel_ip": "169.255.1.1",
+  "paloalto_tunnel_ip": "169.255.1.2",
+  "fortigate_local_subnets": [
+    "192.168.10.0/24"
+  ],
+  "paloalto_local_subnets": [
+    "10.20.10.0/24"
+  ],
+  "pre_shared_key": "SuperSecreto007!",
+  "ike_version": "ikev2",
+  "phase1_proposal": "des-sha1",
+  "phase1_dh": "2",
+  "phase2_proposal": "des-sha1",
+  "phase2_pfs": "2",
+  "phase1_lifetime": 28800,
+  "phase2_lifetime": 3600,
+  "dpd_interval": 10,
+  "fortigate_interface": "port1",
+  "fortigate_inside_interface": "port3",
+  "fortigate_natt": true,
+  "fortigate_net_device": true,
+  "fortigate_static_gateway": "169.255.1.2",
+  "paloalto_inside_zone": "LAN",
+  "paloalto_virtual_router": "default",
+  "paloalto_zone": "vpn-network",
+  "paloalto_ike_interface": "ethernet1/1",
+  "paloalto_tunnel_unit": "tunnel.10",
+  "fortigate_services_inbound": ["HTTPS"],
+  "fortigate_services_outbound": ["HTTPS", "SSH"],
+  "paloalto_services_inbound": ["service-https", "service-ssh"],
+  "paloalto_services_outbound": ["service-https"],
+  "paloalto_applications_inbound": ["ssh", "ssl", "web-browsing"],
+  "paloalto_applications_outbound": ["ssl", "web-browsing"]
+}

@@ -1,4 +1,4 @@
-# AutoVPN (FortiGate ↔ Palo Alto)
+# AutoVPN-SSH (FortiGate ↔ Palo Alto)
 
 Repositorio simplificado con: plan de automatización, JSON de parámetros y scripts para generar, aplicar y validar la configuración IPSec por SSH/Netmiko.
 
@@ -13,12 +13,12 @@ Repositorio simplificado con: plan de automatización, JSON de parámetros y scr
 ## Flujo rápido
 1) Edita parámetros en `vpn_config.json` (WAN, subredes locales, /30 de túnel, PSK, propuestas Phase1/2, servicios/apps por vendor y sentido: `fortigate_services_*`, `paloalto_services_*`, `paloalto_applications_*`).
 2) Genera comandos:  
-   `python3 AutoVPN/generate_deployment.py --config AutoVPN/vpn_config.json`
+   `python3 AutoVPN-SSH/generate_deployment.py --config AutoVPN-SSH/vpn_config.json`
 3) Aplica por SSH (usa el mismo JSON de ambos):  
-   `python3 AutoVPN/deploy_vpn.py --config AutoVPN/vpn_config.json --fortigate-host <ip> --fortigate-user <user> --fortigate-password <pass> --paloalto-host <ip> --paloalto-user <user> --paloalto-password <pass>`  
+   `python3 AutoVPN-SSH/deploy_vpn.py --config AutoVPN-SSH/vpn_config.json --fortigate-host <ip> --fortigate-user <user> --fortigate-password <pass> --paloalto-host <ip> --paloalto-user <user> --paloalto-password <pass>`  
    Añade `--dry-run` si solo quieres los archivos en `outputs/` sin tocar los equipos.
 4) Valida el túnel (ping desde cada firewall a la red remota):  
-   `python3 AutoVPN/validate_vpn.py --config AutoVPN/vpn_config.json --fortigate-host <ip> --fortigate-user <user> --fortigate-password <pass> --paloalto-host <ip> --paloalto-user <user> --paloalto-password <pass>`
+   `python3 AutoVPN-SSH/validate_vpn.py --config AutoVPN-SSH/vpn_config.json --fortigate-host <ip> --fortigate-user <user> --fortigate-password <pass> --paloalto-host <ip> --paloalto-user <user> --paloalto-password <pass>`
 
 ### Notas sobre servicios/app inbound/outbound
 - `services_inbound` / `applications_inbound`: tráfico **desde FortiGate hacia Palo Alto** (PA: regla `vpn-network` → `LAN` con source = redes Forti; FGT: política LAN→VPN).

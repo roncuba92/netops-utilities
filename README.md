@@ -4,7 +4,8 @@ Este README sirve como referencia breve. Para instalación y uso detallado, revi
 
 ## Proyectos
 - `NetConfigurator/`: app de escritorio (CustomTkinter + Netmiko) para gestionar hostname, VLANs y respaldos en switches Cisco IOS. Más info en `NetConfigurator/README.md`.
-- `AutoVPN/`: scripts que generan planes y comandos CLI (FortiGate/Palo Alto) y los aplican por SSH/Netmiko para armar un túnel IPSec. Más info en `AutoVPN/README.md`.
+- `AutoVPN-SSH/`: generación y aplicación por SSH/Netmiko para túnel IPSec FortiGate ↔ Palo Alto. Más info en `AutoVPN-SSH/README.md`.
+- `AutoVPN-API/`: FortiGate por API REST + Palo Alto por SSH/Netmiko (misma config JSON). Más info en `AutoVPN-API/README.md`.
 
 ## Dependencias compartidas
 - `pyproject.toml`, `uv.lock`: manejo de dependencias (uv). Ambos proyectos usan el mismo entorno virtual en la raíz.
