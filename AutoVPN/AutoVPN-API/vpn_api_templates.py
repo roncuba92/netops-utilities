@@ -4,8 +4,7 @@ import json
 from dataclasses import dataclass, field
 from ipaddress import ip_address, ip_network
 from pathlib import Path
-from typing import Any, Dict, List
-
+from typing import Any, Dict, List, Tuple
 
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_CONFIG_PATH = BASE_DIR / "vpn_config.json"
@@ -128,6 +127,7 @@ def build_fortigate_payloads(cfg: VPNConfig) -> Dict[str, Any]:
     for src in cfg.fortigate_local_subnets:
         for dst in cfg.paloalto_local_subnets:
             selectors.append((src, dst))
+    pfs_enabled = str(cfg.phase2_pfs).lower() not in {"off", "disable", "disabled", "none", "no"}
 
     phase1 = {
         "name": cfg.name,
@@ -154,8 +154,8 @@ def build_fortigate_payloads(cfg: VPNConfig) -> Dict[str, Any]:
                 "name": name,
                 "phase1name": cfg.name,
                 "proposal": cfg.phase2_proposal,
-                "pfs": "enable",
-                "dhgrp": cfg.phase2_pfs,
+                "pfs": "enable" if pfs_enabled else "disable",
+                **({"dhgrp": cfg.phase2_pfs} if pfs_enabled else {}),
                 "keylifeseconds": cfg.phase2_lifetime,
                 "src-subnet": f"{src_net.network_address} {src_net.netmask}",
                 "dst-subnet": f"{dst_net.network_address} {dst_net.netmask}",
@@ -255,23 +255,50 @@ def build_fortigate_payloads(cfg: VPNConfig) -> Dict[str, Any]:
 
 
 def _pan_cipher(enc: str) -> str:
+    """Normaliza el nombre del cifrado para PAN-OS."""
     normalized = enc.replace("_", "-").replace(" ", "").lower()
-    if normalized in {"aes256", "aes-256", "aes256cbc", "aes-256-cbc"}:
+    
+    # Mapeos directos para abreviaciones comunes
+    if normalized in {"aes256", "aes256cbc"}:
         return "aes-256-cbc"
-    if normalized in {"aes192", "aes-192", "aes192cbc", "aes-192-cbc"}:
+    if normalized in {"aes192", "aes192cbc"}:
         return "aes-192-cbc"
-    if normalized in {"aes128", "aes-128", "aes128cbc", "aes-128-cbc"}:
+    if normalized in {"aes128", "aes128cbc"}:
         return "aes-128-cbc"
-    if normalized in {"3des", "triple-des"}:
+    if normalized in {"3des", "triple-des", "des3"}:
         return "3des"
-    return enc
+    
+    # Si ya parece formato palo alto (aes-256-cbc), lo devolvemos
+    return normalized
 
 
-def _split_proposal(proposal: str) -> tuple[str, str]:
-    parts = [item.strip() for item in proposal.split("-") if item.strip()]
-    if len(parts) >= 2:
-        return parts[0], parts[1]
-    return proposal.strip(), "sha256"
+def _split_proposal(proposal: str) -> Tuple[str, str]:
+    """
+    Separa 'aes-256-cbc-sha256' en ('aes-256-cbc', 'sha256').
+    Es robusto: busca el hash conocido al final.
+    """
+    known_hashes = {"sha1", "sha256", "sha384", "sha512", "md5"}
+    parts = [p.strip().lower() for p in proposal.split("-") if p.strip()]
+    
+    if not parts:
+        return "aes-256-cbc", "sha256" # Fallback safe
+
+    # Estrategia: Verificar si la última parte es un hash conocido
+    if parts[-1] in known_hashes:
+        hash_algo = parts[-1]
+        cipher_parts = parts[:-1]
+    else:
+        # Si no hay hash explícito, asumimos sha256 (común en configs simplificadas)
+        hash_algo = "sha256" 
+        cipher_parts = parts
+
+    cipher_algo = "-".join(cipher_parts)
+    
+    # Caso borde: si el input era solo "sha256" (raro pero posible error)
+    if not cipher_algo:
+        cipher_algo = "aes-256-cbc"
+
+    return cipher_algo, hash_algo
 
 
 def _pa_list_clause(values: List[str], default: str) -> str:
@@ -284,10 +311,12 @@ def _pa_list_clause(values: List[str], default: str) -> str:
 
 
 def build_paloalto_cli(cfg: VPNConfig) -> List[str]:
+    # Esta función genera comandos CLI para copiar y pegar
     ike_enc_raw, ike_hash = _split_proposal(cfg.phase1_proposal)
     esp_enc_raw, esp_hash = _split_proposal(cfg.phase2_proposal or cfg.phase1_proposal)
     ike_enc = _pan_cipher(ike_enc_raw)
     esp_enc = _pan_cipher(esp_enc_raw)
+    pfs_enabled = str(cfg.phase2_pfs).lower() not in {"off", "disable", "disabled", "none", "no"}
     prefix = ip_network(cfg.tunnel_cidr, strict=False).prefixlen
     ike_profile = f"{cfg.name}-ike"
     ipsec_profile = f"{cfg.name}-ipsec"
@@ -312,7 +341,7 @@ def build_paloalto_cli(cfg: VPNConfig) -> List[str]:
             f"set network ike crypto-profiles ike-crypto-profiles {ike_profile} lifetime seconds {cfg.phase1_lifetime}",
             f"set network ike crypto-profiles ipsec-crypto-profiles {ipsec_profile} esp encryption {esp_enc}",
             f"set network ike crypto-profiles ipsec-crypto-profiles {ipsec_profile} esp authentication {esp_hash}",
-            f"set network ike crypto-profiles ipsec-crypto-profiles {ipsec_profile} dh-group group{cfg.phase2_pfs}",
+            *( [f"set network ike crypto-profiles ipsec-crypto-profiles {ipsec_profile} dh-group group{cfg.phase2_pfs}"] if pfs_enabled else [] ),
             f"set network ike crypto-profiles ipsec-crypto-profiles {ipsec_profile} lifetime seconds {cfg.phase2_lifetime}",
             f"set network ike gateway {cfg.name} authentication pre-shared-key key '{cfg.pre_shared_key}'",
             f"set network ike gateway {cfg.name} local-address interface {cfg.paloalto_ike_interface}",
@@ -377,7 +406,182 @@ def build_paloalto_cli(cfg: VPNConfig) -> List[str]:
     return commands
 
 
+def build_paloalto_api_payloads(cfg: VPNConfig, vsys: str = "vsys1", device: str = "localhost.localdomain") -> Dict[str, Any]:
+    # Parsing robusto de algoritmos
+    ike_enc_raw, ike_hash = _split_proposal(cfg.phase1_proposal)
+    esp_enc_raw, esp_hash = _split_proposal(cfg.phase2_proposal or cfg.phase1_proposal)
+    ike_enc = _pan_cipher(ike_enc_raw)
+    esp_enc = _pan_cipher(esp_enc_raw)
+    
+    pfs_enabled = str(cfg.phase2_pfs).lower() not in {"off", "disable", "disabled", "none", "no"}
+    prefix = ip_network(cfg.tunnel_cidr, strict=False).prefixlen
+    ike_profile = f"{cfg.name}-ike"
+    ipsec_profile = f"{cfg.name}-ipsec"
+    mgmt_profile = cfg.paloalto_mgmt_profile or f"{cfg.name}-icmp"
+
+    # Preparacion de Address Objects
+    addr_entries: List[Dict[str, Any]] = []
+    for idx, subnet in enumerate(cfg.fortigate_local_subnets, start=1):
+        name = f"{cfg.name}-fgt-net-{idx}"
+        addr_entries.append({"name": name, "subnet": subnet})
+    for idx, subnet in enumerate(cfg.paloalto_local_subnets, start=1):
+        name = f"{cfg.name}-pa-net-{idx}"
+        addr_entries.append({"name": name, "subnet": subnet})
+
+    pa_sources = [entry["name"] for entry in addr_entries if "-pa-net-" in entry["name"]]
+    fgt_sources = [entry["name"] for entry in addr_entries if "-fgt-net-" in entry["name"]]
+
+    def _member_block(values: List[str]) -> str:
+        return "".join(f"<member>{val}</member>" for val in values)
+
+    # Preparacion de Proxy IDs
+    proxy_ids: List[Dict[str, Any]] = []
+    for idx, src in enumerate(cfg.paloalto_local_subnets, start=1):
+        for dst in cfg.fortigate_local_subnets:
+            proxy_name = f"{cfg.name}-p2-{idx}" if len(cfg.paloalto_local_subnets) > 1 else f"{cfg.name}-p2"
+            proxy_ids.append({"name": proxy_name, "local": src, "remote": dst})
+
+    # Preparacion de Rutas Estaticas
+    routes: List[Dict[str, Any]] = []
+    for idx, subnet in enumerate(cfg.fortigate_local_subnets, start=1):
+        route_name = f"to-{cfg.name}-{idx}" if len(cfg.fortigate_local_subnets) > 1 else f"to-{cfg.name}"
+        routes.append({"name": route_name, "destination": subnet, "nexthop": cfg.fortigate_tunnel_ip})
+
+    services_in = cfg.paloalto_services_inbound or cfg.services_inbound or ["application-default"]
+    services_out = cfg.paloalto_services_outbound or cfg.services_outbound or ["application-default"]
+    applications_in = cfg.paloalto_applications_inbound or cfg.applications_inbound or ["any"]
+    applications_out = cfg.paloalto_applications_outbound or cfg.applications_outbound or ["any"]
+
+    device_xpath = f"/config/devices/entry[@name='{device}']"
+    vsys_xpath = f"{device_xpath}/vsys/entry[@name='{vsys}']"
+
+    # Diccionario de payloads
+    # NOTA: El orden aqui no importa para el dict, pero si importa para la ejecucion.
+    # Abajo retornamos una lista ordenada de llaves.
+    payloads: Dict[str, Any] = {
+        "addresses": [
+            {
+                "xpath": f"{vsys_xpath}/address",
+                "element": f"<entry name='{entry['name']}'><ip-netmask>{entry['subnet']}</ip-netmask></entry>",
+            }
+            for entry in addr_entries
+        ],
+        "ike_profile": {
+            "xpath": f"{device_xpath}/network/ike/crypto-profiles/ike-crypto-profiles",
+            "element": f"<entry name='{ike_profile}'><encryption><member>{ike_enc}</member></encryption><hash><member>{ike_hash}</member></hash><dh-group><member>group{cfg.phase1_dh}</member></dh-group><lifetime><seconds>{cfg.phase1_lifetime}</seconds></lifetime></entry>",
+        },
+        "ipsec_profile": {
+            "xpath": f"{device_xpath}/network/ike/crypto-profiles/ipsec-crypto-profiles",
+            "element": "".join(
+                [
+                    f"<entry name='{ipsec_profile}'>",
+                    "<esp>",
+                    f"<encryption><member>{esp_enc}</member></encryption>",
+                    f"<authentication><member>{esp_hash}</member></authentication>",
+                    "</esp>",
+                    # FIX: dh-group sin <member> para evitar error code 12
+                    f"{'<dh-group>group' + str(cfg.phase2_pfs) + '</dh-group>' if pfs_enabled else ''}",
+                    f"<lifetime><seconds>{cfg.phase2_lifetime}</seconds></lifetime>",
+                    "</entry>",
+                ]
+            ),
+        },
+        "mgmt_profile": {
+            "xpath": f"{device_xpath}/network/profiles/interface-management-profile",
+            "element": f"<entry name='{mgmt_profile}'><ping>yes</ping></entry>",
+        },
+        "tunnel_unit": {
+            "xpath": f"{device_xpath}/network/interface/tunnel/units",
+            "element": f"<entry name='{cfg.paloalto_tunnel_unit}'><ip><entry name='{cfg.paloalto_tunnel_ip}/{prefix}'/></ip><comment>VPN a FortiGate {cfg.name}</comment><interface-management-profile>{mgmt_profile}</interface-management-profile></entry>",
+        },
+        "vr_interface": {
+            # ADVERTENCIA: Usar siempre action='set' (add) en la llamada API para este xpath.
+            # Si se usa 'edit' (replace), se borraran las otras interfaces del router.
+            "xpath": f"{device_xpath}/network/virtual-router/entry[@name='{cfg.paloalto_virtual_router}']/interface",
+            "element": f"<member>{cfg.paloalto_tunnel_unit}</member>",
+        },
+        "zone": {
+            "xpath": f"{vsys_xpath}/zone",
+            "element": f"<entry name='{cfg.paloalto_zone}'><network><layer3><member>{cfg.paloalto_tunnel_unit}</member></layer3></network></entry>",
+        },
+        "ike_gateway": {
+            "xpath": f"{device_xpath}/network/ike/gateway",
+            "element": "".join(
+                [
+                    f"<entry name='{cfg.name}'>",
+                    "<authentication><pre-shared-key><key>",
+                    f"{cfg.pre_shared_key}",
+                    "</key></pre-shared-key></authentication>",
+                    
+                    # --- INICIO CORRECCIÓN ---
+                    "<protocol>",
+                        "<ikev2>",
+                            f"<ike-crypto-profile>{ike_profile}</ike-crypto-profile>",
+                        "</ikev2>",
+                        # La versión debe estar DENTRO del bloque protocol
+                        "<version>ikev2</version>", 
+                    "</protocol>",
+                    # --- FIN CORRECCIÓN ---
+
+                    f"<local-address><interface>{cfg.paloalto_ike_interface}</interface></local-address>",
+                    f"<peer-address><ip>{cfg.fortigate_wan_ip}</ip></peer-address>",
+                    
+                    # ANTES ESTABA AQUÍ ABAJO (ERROR), LO HEMOS QUITADO
+                    "</entry>",
+                ]
+            ),
+        },
+        "ipsec_tunnel": {
+            "xpath": f"{device_xpath}/network/tunnel/ipsec",
+            "element": f"<entry name='{cfg.name}'><auto-key><ike-gateway><entry name='{cfg.name}'/></ike-gateway><ipsec-crypto-profile>{ipsec_profile}</ipsec-crypto-profile></auto-key><tunnel-interface>{cfg.paloalto_tunnel_unit}</tunnel-interface></entry>",
+        },
+        "proxy_ids": [
+            {
+                "xpath": f"{device_xpath}/network/tunnel/ipsec/entry[@name='{cfg.name}']/auto-key/proxy-id",
+                "element": f"<entry name='{proxy['name']}'><local>{proxy['local']}</local><remote>{proxy['remote']}</remote><protocol><any/></protocol></entry>",
+            }
+            for proxy in proxy_ids
+        ],
+        "static_routes": [
+            {
+                "xpath": f"{device_xpath}/network/virtual-router/entry[@name='{cfg.paloalto_virtual_router}']/routing-table/ip/static-route",
+                "element": f"<entry name='{route['name']}'><destination>{route['destination']}</destination><interface>{cfg.paloalto_tunnel_unit}</interface><nexthop><ip-address>{route['nexthop']}</ip-address></nexthop></entry>",
+            }
+            for route in routes
+        ],
+        "security_rules": [
+            {
+                "xpath": f"{vsys_xpath}/rulebase/security/rules",
+                "element": f"<entry name='{cfg.name}-inbound-allow'><from><member>{cfg.paloalto_zone}</member></from><to><member>{cfg.paloalto_inside_zone}</member></to><source>{_member_block(fgt_sources)}</source><destination>{_member_block(pa_sources)}</destination><application>{_member_block(applications_in)}</application><service>{_member_block(services_in)}</service><action>allow</action></entry>",
+            },
+            {
+                "xpath": f"{vsys_xpath}/rulebase/security/rules",
+                "element": f"<entry name='{cfg.name}-outbound-allow'><from><member>{cfg.paloalto_inside_zone}</member></from><to><member>{cfg.paloalto_zone}</member></to><source>{_member_block(pa_sources)}</source><destination>{_member_block(fgt_sources)}</destination><application>{_member_block(applications_out)}</application><service>{_member_block(services_out)}</service><action>allow</action></entry>",
+            },
+        ],
+    }
+    
+    # IMPORTANTE: Definimos el orden estricto de ejecucion para evitar errores de dependencias
+    payloads["ordered_steps"] = [
+        "addresses",
+        "ike_profile",
+        "ipsec_profile",
+        "ike_gateway",  # Depende de ike_profile
+        "mgmt_profile",
+        "tunnel_unit",  # Depende de mgmt_profile
+        "ipsec_tunnel", # Depende de ike_gateway, ipsec_profile y tunnel_unit
+        "vr_interface", # Depende de tunnel_unit
+        "zone",         # Depende de tunnel_unit
+        "static_routes",
+        "proxy_ids",    # Depende de ipsec_tunnel
+        "security_rules"
+    ]
+    
+    return payloads
+
+
 def render_plan(cfg: VPNConfig) -> str:
+    # (El render_plan se mantiene igual, es solo documentación)
     params = "\n".join(
         [
             f"- Nombre: {cfg.name}",
@@ -394,15 +598,15 @@ def render_plan(cfg: VPNConfig) -> str:
     tools = "\n".join(
         [
             "- FortiGate API REST (`/api/v2/cmdb` y `/api/v2/monitor`).",
-            "- SSH/Netmiko para Palo Alto (`paloalto_panos`).",
+            "- API XML de Palo Alto.",
             "- Python 3 para generar payloads y aplicarlos.",
         ]
     )
     steps = "\n".join(
         [
             "1) Validar parámetros (IPs, /30, subredes).",
-            "2) Generar payloads Forti API y comandos de Palo Alto en `outputs/`.",
-            "3) Aplicar Forti por API (idempotente) y Palo Alto por SSH con `commit`.",
+            "2) Generar payloads usando `build_paloalto_api_payloads`.",
+            "3) Ejecutar llamadas API en el orden indicado en `ordered_steps`.",
             "4) Probar con pings entre subredes remotas.",
         ]
     )
@@ -411,7 +615,7 @@ def render_plan(cfg: VPNConfig) -> str:
             "- NAT-T si hay NAT intermedio; abrir UDP 500/4500 y ESP.",
             "- NTP alineado para evitar fallos de PSK/IKE.",
             "- Propuestas/DH/PFS idénticas en ambos lados.",
-            "- Proxy-ID (PA) y selectores (FGT) deben coincidir.",
+            "- **Importante:** Usar action='set' para la interfaz del Virtual Router para evitar sobrescrituras.",
         ]
     )
     validation = "\n".join(
@@ -424,7 +628,7 @@ def render_plan(cfg: VPNConfig) -> str:
     alerts = "- Integrar salida/exit code con scheduler/CI o webhook ante fallos de SA o de commit."
 
     lines = [
-        "# Plan de Automatización VPN (API Forti + SSH Palo)",
+        "# Plan de Automatización VPN (API Forti + API Palo Alto)",
         "",
         "## Definición de Parámetros",
         params,
