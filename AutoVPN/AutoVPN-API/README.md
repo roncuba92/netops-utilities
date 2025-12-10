@@ -5,8 +5,8 @@ Proyecto paralelo a `AutoVPN-SSH` que aplica la VPN FortiGate ↔ Palo Alto usan
 ## Estructura
 - `vpn_config.json`: parámetros únicos (IP WAN, túnel /30, subredes locales, PSK, propuestas, servicios/apps, interfaces).
 - `vpn_api_templates.py`: validación de config y generación de payloads Forti y Palo.
-- `deploy_vpn.py`: genera archivos de configuracion y aplica (Forti vía API, Palo Alto vía API + commit).
-- `outputs/`: se crea al ejecutar; guarda payloads y plan.
+- `deploy_vpn.py`: genera archivos de configuración y aplica (Forti vía API, Palo Alto vía API + commit).
+- `outputs/`: se crea al ejecutar; guarda los payloads JSON de cada equipo.
 
 ## Requisitos
 - Python 3.10+, paquetes `requests` y `netmiko`.
@@ -15,7 +15,7 @@ Proyecto paralelo a `AutoVPN-SSH` que aplica la VPN FortiGate ↔ Palo Alto usan
 
 ## Uso rápido
 1) Edita parámetros en `vpn_config.json`.
-2) Solo generar archivos de configuracion (macOS/Linux con `python3`):
+2) Solo generar archivos de configuración (macOS/Linux con `python3`):
    ```bash
    python3 AutoVPN-API/deploy_vpn.py --config AutoVPN-API/vpn_config.json --fortigate-host 10.24.133.202 --fortigate-token <TOKEN> --paloalto-host <PA_IP> --paloalto-api-key <PA_KEY> --dry-run
    ```
@@ -26,14 +26,13 @@ Proyecto paralelo a `AutoVPN-SSH` que aplica la VPN FortiGate ↔ Palo Alto usan
    ```
    En Windows: 
    ```bash
-   `python AutoVPN\\AutoVPN-API\\deploy_vpn.py ...`
+   python AutoVPN\\AutoVPN-API\\deploy_vpn.py ...
    ```
    Añade `--skip-paloalto` si solo quieres Forti. Usa `--fortigate-verify`/`--paloalto-verify` si tienes certificados válidos y quieres validar TLS. Ajusta `--paloalto-timeout` si el commit demora más de ~60s.
 
-archivos de configuracion generados en `outputs/`:
+Archivos de configuración generados en `outputs/`:
 - `fortigate_payloads.json`: Phase1/2, interfaz, objetos, políticas y rutas para la API Forti.
 - `paloalto_payloads.json`: payloads y xpaths para la API de Palo Alto.
-- `plan.md`: resumen de parámetros y pasos.
 
 ## Notas rápidas
 - La planificación de parámetros y consideraciones de lab está en `../VPN_PLAN.md`.

@@ -15,7 +15,6 @@ from vpn_api_templates import (
     build_fortigate_payloads,
     build_paloalto_api_payloads,
     load_config,
-    render_plan,
 )
 
 
@@ -305,7 +304,6 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     (args.output_dir / "fortigate_payloads.json").write_text(json.dumps(forti_payloads, indent=2), encoding="utf-8")
     (args.output_dir / "paloalto_payloads.json").write_text(json.dumps(pa_payloads, indent=2), encoding="utf-8")
-    (args.output_dir / "plan.md").write_text(render_plan(cfg), encoding="utf-8")
 
     if args.dry_run:
         print(f"[DRY-RUN] Archivos de configuración escritos en {args.output_dir}, no se aplicó nada.")
