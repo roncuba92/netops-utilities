@@ -1,29 +1,25 @@
-# AutoVPN (FortiGate ↔ Palo Alto IPSec)
+# AutoVPN (FortiGate ↔ Palo Alto)
 
-Automatiza la generación y validación de un túnel IPSec site-to-site. La fuente de verdad es `vpn_config.json`; todos los artefactos se derivan de ese archivo.
+Repositorio simplificado con: plan de automatización, JSON de parámetros y scripts para generar, aplicar y validar la configuración IPSec por SSH/Netmiko.
 
-## Flujo de trabajo
-1) **Definición (Input)**: edita `vpn_config.json` (IPs WAN, IPs de túnel, subredes locales, PSK, propuestas criptográficas, lifetimes, DPD).
-2) **Generación (Procesamiento)**: ejecuta `python3 AutoVPN/generate_deployment.py` (lee, valida, normaliza y crea la carpeta `outputs/`).
-3) **Salidas (Artefactos)** en `AutoVPN/outputs/`:
-   - `VPN_PLAN.md`: documentación con tabla de parámetros, flujo lógico y sección obligatoria de "Desafíos y Consideraciones".
-   - `fortigate_payload.json`: cuerpo JSON listo para `/api/v2/cmdb/...` en FortiGate.
-   - `paloalto_commands.txt`: comandos `set` listos para cargar en candidate-config de Palo Alto (luego `commit`).
-4) **Validación (Check)**: ejecuta `python3 AutoVPN/validate_vpn.py --fortigate-host https://FGT --fortigate-token <token> --paloalto-host <PA> --paloalto-user <user> --paloalto-password <pass>` para confirmar que el túnel esté UP (REST en FGT y SSH/Netmiko en PA).
+## Estructura breve
+- `PLAN_AUTOMATIZACION.md`: documento con parámetros, herramientas/APIs, pasos, consideraciones y validación/alertas.
+- `vpn_config.json`: JSON único para generar y aplicar ambos equipos.
+- `generate_deployment.py`: genera `outputs/fortigate_cli.txt` y `outputs/paloalto_cli.txt` desde `vpn_config.json`.
+- `deploy_vpn.py`: aplica por SSH/Netmiko los comandos de ambos firewalls usando `vpn_config.json`.
+- `validate_vpn.py`: pings desde cada firewall hacia la red remota para comprobar el túnel.
+- `outputs/`: se crea al generar; guarda los comandos y el plan.
 
-## Archivos relevantes
-- `vpn_config.json`: fuente de verdad de parámetros.
-- `generate_deployment.py`: genera los artefactos en `outputs/`.
-- `deploy_vpn.py`: aplica los artefactos en FortiGate (REST) y Palo Alto (SSH/Netmiko).
-- `validate_vpn.py`: verifica el estado del túnel (SA IKE/IPSec).
-- `outputs/`: artefactos generados (se crean al correr el generador).
+## Flujo rápido
+1) Edita parámetros en `vpn_config.json` (WAN, subredes locales, /30 de túnel, PSK, propuestas Phase1/2, servicios/apps por vendor y sentido: `fortigate_services_*`, `paloalto_services_*`, `paloalto_applications_*`).
+2) Genera comandos:  
+   `python3 AutoVPN/generate_deployment.py --config AutoVPN/vpn_config.json`
+3) Aplica por SSH (usa el mismo JSON de ambos):  
+   `python3 AutoVPN/deploy_vpn.py --config AutoVPN/vpn_config.json --fortigate-host <ip> --fortigate-user <user> --fortigate-password <pass> --paloalto-host <ip> --paloalto-user <user> --paloalto-password <pass>`  
+   Añade `--dry-run` si solo quieres los archivos en `outputs/` sin tocar los equipos.
+4) Valida el túnel (ping desde cada firewall a la red remota):  
+   `python3 AutoVPN/validate_vpn.py --config AutoVPN/vpn_config.json --fortigate-host <ip> --fortigate-user <user> --fortigate-password <pass> --paloalto-host <ip> --paloalto-user <user> --paloalto-password <pass>`
 
-## Uso rápido
-- Generar artefactos: `python3 AutoVPN/generate_deployment.py --config AutoVPN/vpn_config.json`
-- Desplegar artefactos: `python3 AutoVPN/deploy_vpn.py --fortigate-host https://198.51.100.10 --fortigate-token <token> --paloalto-host 198.51.100.20 --paloalto-user admin --paloalto-password <pass> [--verify-ssl]`
-- Validar túnel: `python3 AutoVPN/validate_vpn.py --config AutoVPN/vpn_config.json --fortigate-host https://198.51.100.10 --fortigate-token <token> --paloalto-host 198.51.100.20 --paloalto-user admin --paloalto-password <pass>`
-
-## Notas
-- Palo Alto se configura en candidate-config; recuerda hacer `commit`.
-- FortiGate usa `/api/v2/cmdb/...`; el payload generado es JSON listo para API.
-- Dependencias: `requests` y `netmiko` (ver `pyproject.toml`).
+### Notas sobre servicios/app inbound/outbound
+- `services_inbound` / `applications_inbound`: tráfico **desde FortiGate hacia Palo Alto** (PA: regla `vpn-network` → `LAN` con source = redes Forti; FGT: política LAN→VPN).
+- `services_outbound` / `applications_outbound`: tráfico **desde Palo Alto hacia FortiGate** (PA: regla `LAN` → `vpn-network` con source = redes PA; FGT: política VPN→LAN).
