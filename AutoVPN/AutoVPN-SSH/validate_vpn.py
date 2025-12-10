@@ -3,9 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 import re
-from ipaddress import ip_network
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict
 
 from netmiko import ConnectHandler
 
@@ -14,7 +13,6 @@ from vpn_templates import DEFAULT_CONFIG_PATH, load_config
 
 def _is_ping_success(output: str) -> bool:
     text = output.lower()
-    # Reglas de éxito/fracaso explícitas
     loss_match = re.search(r"(\d+)%\s*packet loss", text)
     if loss_match:
         return int(loss_match.group(1)) < 100
@@ -55,7 +53,6 @@ def ping_from_paloalto(host: str, username: str, password: str, source_ip: str, 
         "fast_cli": False,
     }
     with ConnectHandler(**device) as conn:
-        # Usar timing para recoger el resultado completo sin esperar al prompt
         output = conn.send_command_timing(f"ping count 3 source {source_ip} host {target_ip}", delay_factor=2)
     return {"ok": str(_is_ping_success(output)).lower(), "output": output}
 
@@ -113,13 +110,9 @@ def main() -> None:
     args = parse_args()
     cfg = load_config(args.config)
 
-    pa_net = ip_network(cfg.paloalto_local_subnets[0], strict=False)
-    fgt_net = ip_network(cfg.fortigate_local_subnets[0], strict=False)
-    # Por defecto validamos contra la IP de túnel remota, que siempre existe.
     target_from_fgt = args.target_from_fgt or cfg.paloalto_tunnel_ip
     target_from_pa = args.target_from_pa or cfg.fortigate_tunnel_ip
 
-    # Estado de túnel
     try:
         fgt_status = status_from_fortigate(
             host=args.fortigate_host,

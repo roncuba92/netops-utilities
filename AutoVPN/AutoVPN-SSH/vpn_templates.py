@@ -429,7 +429,7 @@ def render_plan(cfg: VPNConfig) -> str:
         [
             "- SSH/CLI con Netmiko (FortiGate `fortinet`, Palo Alto `paloalto_panos`).",
             "- Python 3 para generar comandos y aplicarlos.",
-            "- Git para versionar parámetros y artefactos.",
+            "- Git para versionar parámetros y archivos de configuración.",
         ]
     )
     steps = "\n".join(

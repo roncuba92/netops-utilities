@@ -17,7 +17,7 @@ def write_outputs(config_path: Path, output_dir: Path) -> None:
     pa_cmds = build_paloalto_cli(cfg)
     (output_dir / "fortigate_cli.txt").write_text("\n".join(fgt_cmds) + "\n", encoding="utf-8")
     (output_dir / "paloalto_cli.txt").write_text("\n".join(pa_cmds) + "\n", encoding="utf-8")
-    print(f"Artefactos escritos en {output_dir}")
+    print(f"Archivos de configuración escritos en {output_dir}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -32,7 +32,7 @@ def main() -> None:
     try:
         write_outputs(args.config, args.output_dir)
     except Exception as exc:  # pylint: disable=broad-except
-        raise SystemExit(f"Error generando artefactos: {exc}") from exc
+        raise SystemExit(f"Error generando archivos de configuración: {exc}") from exc
 
 
 if __name__ == "__main__":

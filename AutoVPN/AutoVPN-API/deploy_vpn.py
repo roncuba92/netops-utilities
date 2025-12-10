@@ -289,10 +289,10 @@ def parse_args() -> argparse.Namespace:
         "--output-dir",
         type=Path,
         default=BASE_DIR / "outputs",
-        help="Dónde guardar los payloads/artefactos generados.",
+        help="Dónde guardar los payloads/archivos de configuración generados.",
     )
     parser.add_argument("--skip-paloalto", action="store_true", help="No aplica cambios en Palo Alto, solo FortiGate.")
-    parser.add_argument("--dry-run", action="store_true", help="Solo genera artefactos, no aplica en dispositivos.")
+    parser.add_argument("--dry-run", action="store_true", help="Solo genera archivos de configuración, no aplica en dispositivos.")
     return parser.parse_args()
 
 
@@ -308,7 +308,7 @@ def main() -> None:
     (args.output_dir / "plan.md").write_text(render_plan(cfg), encoding="utf-8")
 
     if args.dry_run:
-        print(f"[DRY-RUN] Artefactos escritos en {args.output_dir}, no se aplicó nada.")
+        print(f"[DRY-RUN] Archivos de configuración escritos en {args.output_dir}, no se aplicó nada.")
         return
 
     try:
