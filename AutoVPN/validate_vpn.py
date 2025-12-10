@@ -1,14 +1,34 @@
 from __future__ import annotations
 
+"""
+Verificación básica de la VPN FortiGate ↔ Palo Alto por SSH (Netmiko).
+
+Hace doble chequeo: consulta el estado del túnel en ambos equipos y, opcionalmente,
+ejecuta un ping desde cada firewall hacia la IP de túnel remota. En este lab el ping
+suele fallar porque no hay política permitiendo ICMP entre las IP del túnel; se puede
+hacer `--skip-ping` para evitarlo o abrir la política si el dispositivo lo permite.
+"""
+
 import argparse
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Dict
 
 from netmiko import ConnectHandler
 
-from vpn_templates import DEFAULT_CONFIG_PATH, load_config
+
+BASE_DIR = Path(__file__).resolve().parent
+SSH_DIR = BASE_DIR / "AutoVPN-SSH"
+DEFAULT_CONFIG_PATH = SSH_DIR / "vpn_config.json"
+
+# Permitimos importar las plantillas existentes de AutoVPN-SSH sin convertirlo en paquete.
+sys.path.insert(0, str(SSH_DIR))
+try:
+    from vpn_templates import load_config  # type: ignore
+except Exception as exc:  # pylint: disable=broad-except
+    raise SystemExit(f"No se pudo importar vpn_templates desde {SSH_DIR}: {exc}") from exc
 
 
 def _is_ping_success(output: str) -> bool:
@@ -91,8 +111,10 @@ def status_from_paloalto(host: str, username: str, password: str, tunnel_name: s
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Prueba conectividad entre subredes atravesando el túnel IPSec usando SSH.")
-    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH, help="Ruta a vpn_config.json.")
+    parser = argparse.ArgumentParser(
+        description="Verifica por SSH el estado IPSec en FortiGate y Palo Alto. El ping puede fallar si no hay política de ICMP en el túnel; usa --skip-ping si es tu caso."
+    )
+    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH, help="Ruta al vpn_config.json (por defecto el de AutoVPN-SSH).")
     parser.add_argument("--fortigate-host", required=True, help="IP/hostname de FortiGate.")
     parser.add_argument("--fortigate-user", required=True, help="Usuario de FortiGate.")
     parser.add_argument("--fortigate-password", required=True, help="Contraseña de FortiGate.")
@@ -133,7 +155,6 @@ def main() -> None:
     except Exception as exc:  # pylint: disable=broad-except
         pa_status = {"ok": "false", "output": f"Error estado Palo Alto: {exc}"}
 
-    # Pings opcionales
     if args.skip_ping:
         fgt_ping = {"ok": "unknown", "output": "ping omitido"}
         pa_ping = {"ok": "unknown", "output": "ping omitido"}

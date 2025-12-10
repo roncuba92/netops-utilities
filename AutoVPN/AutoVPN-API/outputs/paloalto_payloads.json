@@ -1,0 +1,80 @@
+{
+  "addresses": [
+    {
+      "xpath": "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/address",
+      "element": "<entry name='fgt-pa-ipsec-fgt-net-1'><ip-netmask>192.168.10.0/24</ip-netmask></entry>"
+    },
+    {
+      "xpath": "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/address",
+      "element": "<entry name='fgt-pa-ipsec-pa-net-1'><ip-netmask>10.20.10.0/24</ip-netmask></entry>"
+    }
+  ],
+  "ike_profile": {
+    "xpath": "/config/devices/entry[@name='localhost.localdomain']/network/ike/crypto-profiles/ike-crypto-profiles",
+    "element": "<entry name='fgt-pa-ipsec-ike'><encryption><member>des</member></encryption><hash><member>sha1</member></hash><dh-group><member>group2</member></dh-group><lifetime><seconds>28800</seconds></lifetime></entry>"
+  },
+  "ipsec_profile": {
+    "xpath": "/config/devices/entry[@name='localhost.localdomain']/network/ike/crypto-profiles/ipsec-crypto-profiles",
+    "element": "<entry name='fgt-pa-ipsec-ipsec'><esp><encryption><member>des</member></encryption><authentication><member>sha1</member></authentication></esp><dh-group>group2</dh-group><lifetime><seconds>3600</seconds></lifetime></entry>"
+  },
+  "mgmt_profile": {
+    "xpath": "/config/devices/entry[@name='localhost.localdomain']/network/profiles/interface-management-profile",
+    "element": "<entry name='fgt-pa-ipsec-icmp'><ping>yes</ping></entry>"
+  },
+  "tunnel_unit": {
+    "xpath": "/config/devices/entry[@name='localhost.localdomain']/network/interface/tunnel/units",
+    "element": "<entry name='tunnel.10'><ip><entry name='169.255.1.2/30'/></ip><comment>VPN a FortiGate fgt-pa-ipsec</comment><interface-management-profile>fgt-pa-ipsec-icmp</interface-management-profile></entry>"
+  },
+  "vr_interface": {
+    "xpath": "/config/devices/entry[@name='localhost.localdomain']/network/virtual-router/entry[@name='default']/interface",
+    "element": "<member>tunnel.10</member>"
+  },
+  "zone": {
+    "xpath": "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/zone",
+    "element": "<entry name='vpn-network'><network><layer3><member>tunnel.10</member></layer3></network></entry>"
+  },
+  "ike_gateway": {
+    "xpath": "/config/devices/entry[@name='localhost.localdomain']/network/ike/gateway",
+    "element": "<entry name='fgt-pa-ipsec'><authentication><pre-shared-key><key>SuperSecreto007!</key></pre-shared-key></authentication><protocol><ikev2><ike-crypto-profile>fgt-pa-ipsec-ike</ike-crypto-profile></ikev2><version>ikev2</version></protocol><local-address><interface>ethernet1/1</interface></local-address><peer-address><ip>198.51.100.10</ip></peer-address></entry>"
+  },
+  "ipsec_tunnel": {
+    "xpath": "/config/devices/entry[@name='localhost.localdomain']/network/tunnel/ipsec",
+    "element": "<entry name='fgt-pa-ipsec'><auto-key><ike-gateway><entry name='fgt-pa-ipsec'/></ike-gateway><ipsec-crypto-profile>fgt-pa-ipsec-ipsec</ipsec-crypto-profile></auto-key><tunnel-interface>tunnel.10</tunnel-interface></entry>"
+  },
+  "proxy_ids": [
+    {
+      "xpath": "/config/devices/entry[@name='localhost.localdomain']/network/tunnel/ipsec/entry[@name='fgt-pa-ipsec']/auto-key/proxy-id",
+      "element": "<entry name='fgt-pa-ipsec-p2'><local>10.20.10.0/24</local><remote>192.168.10.0/24</remote><protocol><any/></protocol></entry>"
+    }
+  ],
+  "static_routes": [
+    {
+      "xpath": "/config/devices/entry[@name='localhost.localdomain']/network/virtual-router/entry[@name='default']/routing-table/ip/static-route",
+      "element": "<entry name='to-fgt-pa-ipsec'><destination>192.168.10.0/24</destination><interface>tunnel.10</interface><nexthop><ip-address>169.255.1.1</ip-address></nexthop></entry>"
+    }
+  ],
+  "security_rules": [
+    {
+      "xpath": "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/rulebase/security/rules",
+      "element": "<entry name='fgt-pa-ipsec-inbound-allow'><from><member>vpn-network</member></from><to><member>LAN</member></to><source><member>fgt-pa-ipsec-fgt-net-1</member></source><destination><member>fgt-pa-ipsec-pa-net-1</member></destination><application><member>ssh</member><member>ssl</member><member>web-browsing</member></application><service><member>service-https</member><member>service-ssh</member></service><action>allow</action></entry>"
+    },
+    {
+      "xpath": "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/rulebase/security/rules",
+      "element": "<entry name='fgt-pa-ipsec-outbound-allow'><from><member>LAN</member></from><to><member>vpn-network</member></to><source><member>fgt-pa-ipsec-pa-net-1</member></source><destination><member>fgt-pa-ipsec-fgt-net-1</member></destination><application><member>ssl</member><member>web-browsing</member></application><service><member>service-https</member></service><action>allow</action></entry>"
+    }
+  ],
+  "ordered_steps": [
+    "addresses",
+    "ike_profile",
+    "ipsec_profile",
+    "ike_gateway",
+    "mgmt_profile",
+    "tunnel_unit",
+    "ipsec_tunnel",
+    "vr_interface",
+    "zone",
+    "static_routes",
+    "proxy_ids",
+    "security_rules"
+  ]
+}

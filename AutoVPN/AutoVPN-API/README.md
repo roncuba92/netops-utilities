@@ -9,9 +9,9 @@ Proyecto paralelo a `AutoVPN-SSH` que aplica la VPN FortiGate ↔ Palo Alto usan
 - `outputs/`: se crea al ejecutar; guarda los payloads JSON de cada equipo.
 
 ## Requisitos
-- Python 3.10+, paquetes `requests` y `netmiko`.
+- Python 3.10+, paquete `requests`.
 - Token de API Forti (`Authorization: Bearer ...`) con permisos de escritura en el VDOM.
-- Acceso SSH a Palo Alto (admin/commit).
+- API key de Palo Alto (XML API con permisos de commit). No se requiere SSH para esta variante.
 
 ## Uso rápido
 1) Edita parámetros en `vpn_config.json`.
@@ -40,3 +40,8 @@ Archivos de configuración generados en `outputs/`:
 - Palo Alto usa API XML (`type=config`) con `set` y `commit`; crea/actualiza perfiles, gateway IKE, túnel, proxy-id, rutas, zona, objetos y reglas.
 - Si tienes varias subredes, se crean múltiples Phase2/Proxy-ID.
 - El gateway de las rutas en Forti usa `fortigate_static_gateway` si está definido, de lo contrario la IP de túnel de Palo (`paloalto_tunnel_ip`).
+
+## Alertas y validación continua
+- Usa `verify_vpn.py` en cron/CI: el script termina con código ≠0 si IKE/IPSec está DOWN o falla el ping, lo que permite disparar alertas en el pipeline.
+- Notificación sugerida: el job lee el exit code y envía un webhook (Slack/Teams/email) con la salida del script; así se evita lógica adicional en los firewalls.
+- Complementario: habilitar traps SNMP o Syslog en Forti/PAN-OS para eventos de túnel caído y centralizarlos en el SIEM.

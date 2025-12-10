@@ -1,0 +1,146 @@
+{
+  "phase1": {
+    "name": "fgt-pa-ipsec",
+    "interface": "port1",
+    "remote-gw": "203.0.113.10",
+    "psksecret": "SuperSecreto007!",
+    "ike-version": "2",
+    "proposal": "des-sha1",
+    "dhgrp": "2",
+    "keylife": 28800,
+    "dpd-retryinterval": 10,
+    "nattraversal": "enable",
+    "net-device": "enable",
+    "add-route": "disable"
+  },
+  "phase2": [
+    {
+      "name": "fgt-pa-ipsec-p2",
+      "phase1name": "fgt-pa-ipsec",
+      "proposal": "des-sha1",
+      "pfs": "enable",
+      "dhgrp": "2",
+      "keylifeseconds": 3600,
+      "src-subnet": "192.168.10.0 255.255.255.0",
+      "dst-subnet": "10.20.10.0 255.255.255.0"
+    }
+  ],
+  "interface": {
+    "name": "fgt-pa-ipsec",
+    "alias": "VPN fgt-pa-ipsec",
+    "type": "tunnel",
+    "interface": "port1",
+    "ip": "169.255.1.1 255.255.255.255",
+    "remote-ip": "169.255.1.2 255.255.255.255",
+    "allowaccess": [
+      "ping"
+    ]
+  },
+  "addresses": [
+    {
+      "name": "fgt-pa-ipsec-fgt-1",
+      "subnet": "192.168.10.0 255.255.255.0",
+      "type": "ipmask"
+    },
+    {
+      "name": "fgt-pa-ipsec-pa-1",
+      "subnet": "10.20.10.0 255.255.255.0",
+      "type": "ipmask"
+    }
+  ],
+  "addrgrps": [
+    {
+      "name": "grp-fgt-pa-ipsec-fgt-local",
+      "member": [
+        {
+          "name": "fgt-pa-ipsec-fgt-1"
+        }
+      ]
+    },
+    {
+      "name": "grp-fgt-pa-ipsec-pa-remote",
+      "member": [
+        {
+          "name": "fgt-pa-ipsec-pa-1"
+        }
+      ]
+    }
+  ],
+  "policies": [
+    {
+      "name": "fgt-pa-ipsec-lan-to-vpn",
+      "srcintf": [
+        {
+          "name": "port3"
+        }
+      ],
+      "dstintf": [
+        {
+          "name": "fgt-pa-ipsec"
+        }
+      ],
+      "srcaddr": [
+        {
+          "name": "grp-fgt-pa-ipsec-fgt-local"
+        }
+      ],
+      "dstaddr": [
+        {
+          "name": "grp-fgt-pa-ipsec-pa-remote"
+        }
+      ],
+      "action": "accept",
+      "schedule": "always",
+      "service": [
+        {
+          "name": "HTTPS"
+        },
+        {
+          "name": "SSH"
+        }
+      ],
+      "logtraffic": "all",
+      "nat": "disable"
+    },
+    {
+      "name": "fgt-pa-ipsec-vpn-to-lan",
+      "srcintf": [
+        {
+          "name": "fgt-pa-ipsec"
+        }
+      ],
+      "dstintf": [
+        {
+          "name": "port3"
+        }
+      ],
+      "srcaddr": [
+        {
+          "name": "grp-fgt-pa-ipsec-pa-remote"
+        }
+      ],
+      "dstaddr": [
+        {
+          "name": "grp-fgt-pa-ipsec-fgt-local"
+        }
+      ],
+      "action": "accept",
+      "schedule": "always",
+      "service": [
+        {
+          "name": "HTTPS"
+        }
+      ],
+      "logtraffic": "all",
+      "nat": "disable"
+    }
+  ],
+  "routes": [
+    {
+      "dst": "10.20.10.0 255.255.255.0",
+      "device": "fgt-pa-ipsec",
+      "gateway": "169.255.1.2",
+      "distance": 10
+    }
+  ]
+}

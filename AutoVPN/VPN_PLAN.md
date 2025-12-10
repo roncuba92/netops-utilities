@@ -45,4 +45,8 @@ La imagen virtual de FortiGate del laboratorio solo soporta cifrados básicos (p
   - Forti: `api/v2/monitor/vpn/ipsec` o `get vpn ipsec tunnel summary`.  
   - Palo Alto: `show vpn ike-sa gateway <nombre>` y `show vpn ipsec-sa tunnel <nombre>`.
 - **Pruebas de conectividad**: pings iniciados desde la IP de túnel (o desde subred LAN si la API lo permite). Éxito = respuestas ICMP o estado IKE/IPSec en `up/established`.
-- **Reporte**: scripts de verificación imprimen `VPN STATUS: UP/DOWN` y retornan código de salida distinto de cero al fallar, apto para CI/alertas.
+- **Verificación básica por SSH**: `AutoVPN/validate_vpn.py` usa Netmiko para conectarse a ambos firewalls, consultar el estado IKE/IPSec en cada uno y (opcional) lanzar pings entre las IP de túnel. En este lab el ping suele fallar porque no hay política permitiendo ICMP entre las IP del túnel y la imagen de FortiGate de prueba limita las políticas; se puede usar `--skip-ping` o habilitar ICMP si el equipo lo permite.
+- **Reporte y Alertas**: 
+  - `AutoVPN/validate_vpn.py` sale con código ≠0 si el túnel cae o no hay respuesta ICMP; se integra directo en CI/crontab para generar alarmas. 
+  - Notificación mínima: pipeline/cron detecta el exit code y envía webhook (Slack/Teams) con el JSON impreso por los scripts. 
+  - Opcional: habilitar traps SNMP/Syslog nativos de cada firewall para eventos IKE/IPSec down y centralizarlos en el SIEM, como canal secundario.

@@ -6,7 +6,7 @@ Automatiza la VPN IPSec por SSH/Netmiko. El plan maestro de parámetros/consider
 - `vpn_config.json`: JSON único para generar y aplicar ambos equipos.
 - `generate_deployment.py`: genera `outputs/fortigate_cli.txt` y `outputs/paloalto_cli.txt` desde `vpn_config.json`.
 - `deploy_vpn.py`: aplica por SSH/Netmiko los comandos de ambos firewalls usando `vpn_config.json`.
-- `validate_vpn.py`: pings desde cada firewall hacia la red remota para comprobar el túnel.
+- `../validate_vpn.py`: verificación por SSH (estado IKE/IPSec en ambos equipos y ping opcional).
 - `outputs/`: se crea al generar; guarda los comandos.
 
 ## Flujo rápido
@@ -28,11 +28,12 @@ Automatiza la VPN IPSec por SSH/Netmiko. El plan maestro de parámetros/consider
    `python AutoVPN\\AutoVPN-SSH\\deploy_vpn.py --config AutoVPN\\AutoVPN-SSH\\vpn_config.json ...`
    ```
    Añade `--dry-run` si solo quieres los archivos en `outputs/` sin tocar los equipos.
-4) Valida el túnel (ping desde cada firewall a la red remota):  
+4) Valida el túnel (estado IKE/IPSec en ambos equipos y ping opcional):  
    ```bash
-   `python3 AutoVPN-SSH/validate_vpn.py --config AutoVPN-SSH/vpn_config.json --fortigate-host <ip> --fortigate-user <user> --fortigate-password <pass> --paloalto-host <ip> --paloalto-user <user> --paloalto-password <pass>`
+   `python3 AutoVPN/validate_vpn.py --config AutoVPN-SSH/vpn_config.json --fortigate-host <ip> --fortigate-user <user> --fortigate-password <pass> --paloalto-host <ip> --paloalto-user <user> --paloalto-password <pass> [--skip-ping]`
    ```
    En Windows: 
    ```bash
-   `python AutoVPN\\AutoVPN-SSH\\validate_vpn.py --config AutoVPN\\AutoVPN-SSH\\vpn_config.json ...`
+   `python AutoVPN\\validate_vpn.py --config AutoVPN\\AutoVPN-SSH\\vpn_config.json ...`
    ```
+   Nota: el ping entre IPs de túnel puede fallar si no hay política de ICMP; usa `--skip-ping` si tu equipo lo bloquea.
