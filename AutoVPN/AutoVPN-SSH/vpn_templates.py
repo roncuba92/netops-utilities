@@ -322,7 +322,6 @@ def build_paloalto_cli(cfg: VPNConfig) -> List[str]:
     mgmt_profile = cfg.paloalto_mgmt_profile or f"{cfg.name}-icmp"
 
     commands: List[str] = []
-    # Objetos de direcciones (separa nombres para cada lado)
     addr_map: Dict[str, str] = {}
     for idx, subnet in enumerate(cfg.fortigate_local_subnets, start=1):
         name = f"{cfg.name}-fgt-net-{idx}"
@@ -353,20 +352,19 @@ def build_paloalto_cli(cfg: VPNConfig) -> List[str]:
         ]
     )
 
-    # Perfil de management para permitir ping al túnel
     commands.append(f"set network profiles interface-management-profile {mgmt_profile} ping yes")
 
     commands.extend(
         [
-            f"set network tunnel ipsec {cfg.name} auto-key ike-gateway {cfg.name}",
-            f"set network tunnel ipsec {cfg.name} auto-key ipsec-crypto-profile {ipsec_profile}",
-            f"set network tunnel ipsec {cfg.name} auto-key enable yes",
-            f"set network tunnel ipsec {cfg.name} tunnel-interface {cfg.paloalto_tunnel_unit}",
             f"set network interface tunnel units {cfg.paloalto_tunnel_unit} ip {cfg.paloalto_tunnel_ip}/{prefix}",
             f"set network interface tunnel units {cfg.paloalto_tunnel_unit} comment 'VPN a FortiGate {cfg.name}'",
             f"set network interface tunnel units {cfg.paloalto_tunnel_unit} interface-management-profile {mgmt_profile}",
             f"set network virtual-router {cfg.paloalto_virtual_router} interface {cfg.paloalto_tunnel_unit}",
             f"set zone {cfg.paloalto_zone} network layer3 {cfg.paloalto_tunnel_unit}",
+            f"set network tunnel ipsec {cfg.name} auto-key ike-gateway {cfg.name}",
+            f"set network tunnel ipsec {cfg.name} auto-key ipsec-crypto-profile {ipsec_profile}",
+            f"set network tunnel ipsec {cfg.name} auto-key enable yes",
+            f"set network tunnel ipsec {cfg.name} tunnel-interface {cfg.paloalto_tunnel_unit}",
         ]
     )
 
